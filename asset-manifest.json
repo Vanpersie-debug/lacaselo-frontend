@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/lacaselo-frontend/static/css/main.3b71cc2a.css",
+    "main.js": "/lacaselo-frontend/static/js/main.1d0f2ff4.js",
+    "static/js/453.20359781.chunk.js": "/lacaselo-frontend/static/js/453.20359781.chunk.js",
+    "index.html": "/lacaselo-frontend/index.html",
+    "main.3b71cc2a.css.map": "/lacaselo-frontend/static/css/main.3b71cc2a.css.map",
+    "main.1d0f2ff4.js.map": "/lacaselo-frontend/static/js/main.1d0f2ff4.js.map",
+    "453.20359781.chunk.js.map": "/lacaselo-frontend/static/js/453.20359781.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.3b71cc2a.css",
+    "static/js/main.1d0f2ff4.js"
+  ]
+}
