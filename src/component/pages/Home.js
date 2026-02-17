@@ -16,7 +16,7 @@ function Home() {
   });
 
   // CHANGE THIS LATER WHEN HOSTED
-  const API_BASE = "http://localhost:5000/api";
+  const API_BASE = "https://backend-vitq.onrender.com/api";
 
   useEffect(() => {
     fetchTotals();

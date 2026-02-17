@@ -3,7 +3,7 @@ import axios from "axios";
 
 function GuestHouse() {
   const [dates, setDates] = useState([]);
-  const API_URL = "http://localhost:5000/api/guesthouse";
+  const API_URL = "https://backend-vitq.onrender.com/api/guesthouse";
 
   const fetchDates = async () => {
     try {

@@ -8,7 +8,7 @@ function Kitchen() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [totalEarned, setTotalEarned] = useState(0); // total money from sold food
 
-  const API_URL = "http://localhost:5000/api/kitchen";
+  const API_URL = "https://backend-vitq.onrender.com/api/kitchen";
 
   // ================= FETCH FOODS =================
   const fetchFoods = async (date) => {

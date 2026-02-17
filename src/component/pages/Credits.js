@@ -7,7 +7,7 @@ function Credits() {
   const [payment, setPayment] = useState("");
   const [credit, setCredit] = useState("");
 
-  const API_URL = "http://localhost:5000/api/credits";
+  const API_URL = "https://backend-vitq.onrender.com/api/credits";
 
   // ================= FETCH DATA =================
   const fetchCredits = async () => {

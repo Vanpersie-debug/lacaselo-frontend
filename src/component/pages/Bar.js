@@ -8,7 +8,7 @@ function Bar() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [totalEarned, setTotalEarned] = useState(0);
 
-  const API_URL = "http://localhost:5000/api/drinks";
+  const API_URL = "https://backend-vitq.onrender.com/api/drinks";
 
   // ================= FETCH PRODUCTS =================
   const fetchProducts = async (date) => {

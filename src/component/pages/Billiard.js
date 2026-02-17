@@ -8,7 +8,7 @@ function Billiard() {
   const [cash, setCash] = useState("");
   const [cashMomo, setCashMomo] = useState("");
 
-  const API_URL = "http://localhost:5000/api/billiard";
+  const API_URL = "https://backend-vitq.onrender.com/api/billiard";
 
   // Fetch all records
   const fetchData = async () => {

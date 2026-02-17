@@ -15,7 +15,7 @@ function Expenses() {
   });
 
   const navigate = useNavigate();
-  const API_URL = "http://localhost:5000/api/expenses";
+  const API_URL = "https://backend-vitq.onrender.com/api/expenses";
 
   // ================= FETCH =================
   const fetchExpenses = async () => {
