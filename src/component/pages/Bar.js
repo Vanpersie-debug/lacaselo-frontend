@@ -2,213 +2,222 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 function Bar() {
-  const [drinks, setDrinks] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [editValues, setEditValues] = useState({ price: "", quantity: "" });
+  const today = new Date().toISOString().split("T")[0];
 
-  const API_URL = "http://localhost:5000/api/drinks"; // backend endpoint
+  const [products, setProducts] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [totalEarned, setTotalEarned] = useState(0);
 
-  // fetch all drinks
-  const fetchDrinks = async () => {
+  const API_URL = "http://localhost:5000/api/drinks";
+
+  // ================= FETCH PRODUCTS =================
+  const fetchProducts = async (date) => {
     try {
-      const res = await axios.get(API_URL);
-      setDrinks(res.data);
+      const res = await axios.get(API_URL, { params: { date } });
+      // res.data = { products: [...], totalEarned: 7500 }
+      setProducts(res.data.products || []);       // ensure it's always an array
+      setTotalEarned(res.data.totalEarned || 0);
     } catch (err) {
-      console.error("Error fetching drinks:", err);
+      console.error("Error fetching products:", err);
+      setProducts([]);
+      setTotalEarned(0);
     }
   };
 
   useEffect(() => {
-    fetchDrinks();
-  }, []);
+    fetchProducts(selectedDate);
+  }, [selectedDate]);
 
-  // add a new drink
+  // ================= CHANGE DATE =================
+  const changeDate = (days) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+
+    const formatted = newDate.toISOString().split("T")[0];
+    if (formatted > today) return;
+
+    setSelectedDate(formatted);
+  };
+
+  // ================= ADD PRODUCT =================
   const handleAdd = async () => {
-    const name = prompt("Drink name:");
+    const name = prompt("Product name:");
     const price = prompt("Price:");
-    const quantity = prompt("Quantity:");
+    const quantity = prompt("Opening stock:");
 
-    if (name && price && quantity) {
-      try {
-        const res = await axios.post(API_URL, {
-          name,
-          price: Number(price),
-          quantity: Number(quantity),
-        });
-        setDrinks([...drinks, res.data]);
-      } catch (err) {
-        console.error("Error adding drink:", err);
-      }
-    }
-  };
+    if (!name || !price || !quantity) return;
 
-  // start editing a row
-  const handleEditClick = (drink) => {
-    setEditingId(drink.id);
-    setEditValues({ price: drink.price, quantity: drink.quantity });
-  };
-
-  // save edited row
-  const handleSave = async (id) => {
     try {
-      await axios.put(`${API_URL}/${id}`, {
-        price: Number(editValues.price),
-        quantity: Number(editValues.quantity),
+      await axios.post(API_URL, {
+        name,
+        price: Number(price),
+        quantity: Number(quantity),
+        date: selectedDate,
       });
 
-      setDrinks(
-        drinks.map((drink) =>
-          drink.id === id
-            ? { ...drink, price: Number(editValues.price), quantity: Number(editValues.quantity) }
-            : drink
-        )
-      );
-      setEditingId(null);
+      fetchProducts(selectedDate);
     } catch (err) {
-      console.error("Error updating drink:", err);
+      console.error("Error adding product:", err);
     }
   };
 
-  const handleCancel = () => setEditingId(null);
+  // ================= UPDATE ENTREE =================
+  const handleEntreeChange = async (id, value) => {
+    const entreeValue = Number(value);
 
-  // sell a drink
-  const handleSell = async (id) => {
-    const drink = drinks.find((d) => d.id === id);
-    if (!drink || drink.quantity === 0) return;
-
-    const amountStr = prompt(`Enter amount of "${drink.name}" sold:`);
-    const amount = Number(amountStr);
-
-    if (isNaN(amount) || amount <= 0) {
-      alert("Please enter a valid number greater than 0.");
-      return;
-    }
-
-    if (amount > drink.quantity) {
-      alert(`Cannot sell more than available quantity (${drink.quantity}).`);
-      return;
-    }
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, entree: entreeValue } : p))
+    );
 
     try {
-      await axios.post(`${API_URL}/sell/${id}`, { amount });
-      setDrinks(
-        drinks.map((d) =>
-          d.id === id
-            ? { ...d, quantity: d.quantity - amount, sold: d.sold + amount }
-            : d
-        )
-      );
+      await axios.put(`${API_URL}/entree/${id}`, {
+        entree: entreeValue,
+        date: selectedDate,
+      });
+      fetchProducts(selectedDate); // refresh totalEarned
     } catch (err) {
-      console.error("Error selling drink:", err);
+      console.error("Error updating entree:", err);
+    }
+  };
+
+  // ================= UPDATE SOLD =================
+  const handleSoldChange = async (id, value) => {
+    const soldValue = Number(value);
+
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, sold: soldValue } : p))
+    );
+
+    try {
+      await axios.put(`${API_URL}/sold/${id}`, {
+        sold: soldValue,
+        date: selectedDate,
+      });
+      fetchProducts(selectedDate); // refresh totalEarned
+    } catch (err) {
+      console.error("Error updating sold:", err);
     }
   };
 
   return (
     <div className="container mt-4">
-      <div className="card shadow mb-4">
-        <div className="card-body d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
-          <h2 className="mb-2 mb-md-0">Bar</h2>
-          <button className="btn btn-success w-100 w-md-auto" onClick={handleAdd}>
-            + Add Drink
+
+      {/* HEADER */}
+      <div className="card shadow mb-4 p-3 d-flex justify-content-between align-items-center">
+        <h2>Bar</h2>
+
+        <div className="d-flex align-items-center gap-2">
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => changeDate(-1)}
+          >
+            ◀
+          </button>
+
+          <strong>{selectedDate}</strong>
+
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => changeDate(1)}
+            disabled={selectedDate === today}
+          >
+            ▶
+          </button>
+
+          <button
+            className="btn btn-success ms-3"
+            onClick={handleAdd}
+          >
+            + Add Product
           </button>
         </div>
       </div>
 
+      {/* TABLE */}
       <div className="card shadow">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
             <thead className="table-dark">
               <tr>
                 <th>#</th>
-                <th>Drink Name</th>
+                <th>Product Name</th>
                 <th>Price (RWF)</th>
-                <th>Quantity</th>
+                <th>Opening Stock</th>
+                <th>Entree</th>
+                <th>Total Stock</th>
                 <th>Sold</th>
                 <th>Total Sold (RWF)</th>
-                <th>Actions</th>
+                <th>Closing Stock</th>
               </tr>
             </thead>
+
             <tbody>
-              {drinks.length === 0 ? (
+              {products.length === 0 ? (
                 <tr>
-                  <td colSpan="7">No drinks available</td>
+                  <td colSpan="9">No products for this date</td>
                 </tr>
               ) : (
-                drinks.map((drink, index) => (
-                  <tr key={drink.id}>
-                    <td>{index + 1}</td>
-                    <td>{drink.name}</td>
-                    <td>
-                      {editingId === drink.id ? (
+                products.map((product, index) => {
+                  const openingStock = Number(product.quantity);
+                  const entree = Number(product.entree || 0);
+                  const sold = Number(product.sold || 0);
+                  const price = Number(product.price);
+
+                  const totalStock = openingStock + entree;
+                  const totalSold = sold * price;
+                  const closingStock = totalStock - sold;
+
+                  return (
+                    <tr key={product.id}>
+                      <td>{index + 1}</td>
+                      <td>{product.name}</td>
+                      <td>{price}</td>
+                      <td>{openingStock}</td>
+
+                      {/* ENTREE INPUT */}
+                      <td>
                         <input
                           type="number"
-                          value={editValues.price}
-                          onChange={(e) =>
-                            setEditValues({ ...editValues, price: e.target.value })
-                          }
                           className="form-control form-control-sm"
+                          value={entree}
+                          onChange={(e) =>
+                            handleEntreeChange(product.id, e.target.value)
+                          }
                         />
-                      ) : (
-                        drink.price
-                      )}
-                    </td>
-                    <td>
-                      {editingId === drink.id ? (
+                      </td>
+
+                      {/* TOTAL STOCK */}
+                      <td>{totalStock}</td>
+
+                      {/* SOLD INPUT */}
+                      <td>
                         <input
                           type="number"
-                          value={editValues.quantity}
-                          onChange={(e) =>
-                            setEditValues({ ...editValues, quantity: e.target.value })
-                          }
                           className="form-control form-control-sm"
+                          value={sold}
+                          onChange={(e) =>
+                            handleSoldChange(product.id, e.target.value)
+                          }
                         />
-                      ) : (
-                        drink.quantity
-                      )}
-                    </td>
-                    <td>{drink.sold}</td>
-                    <td>{drink.sold * drink.price}</td>
-                    <td>
-                      {editingId === drink.id ? (
-                        <>
-                          <button
-                            className="btn btn-sm btn-success me-2"
-                            onClick={() => handleSave(drink.id)}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="btn btn-sm btn-secondary"
-                            onClick={handleCancel}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            className="btn btn-sm btn-primary me-2"
-                            onClick={() => handleEditClick(drink)}
-                          >
-                            Update
-                          </button>
-                          {drink.quantity > 0 && (
-                            <button
-                              className="btn btn-sm btn-warning"
-                              onClick={() => handleSell(drink.id)}
-                            >
-                              Sell
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+
+                      {/* TOTAL SOLD */}
+                      <td>{totalSold}</td>
+
+                      {/* CLOSING STOCK */}
+                      <td>{closingStock}</td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* TOTAL EARNED */}
+      <div className="mt-2 text-end fw-bold fs-5">
+        Total Earned (RWF): {totalEarned}
       </div>
     </div>
   );

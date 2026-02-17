@@ -10,6 +10,7 @@ import GuestHouse from "./component/pages/GuestHouse";
 import GYM from "./component/pages/GYM";
 import Billiard from "./component/pages/Billiard";
 import Expenses from "./component/pages/Expenses";
+import Credits from "./component/pages/Credits"; // ✅ Added
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/GYM" element={<GYM />} />
         <Route path="/Billiard" element={<Billiard />} />
         <Route path="/Expenses" element={<Expenses />} />
+        <Route path="/credits" element={<Credits />} /> {/* ✅ Added */}
       </Routes>
     </Router>
   );

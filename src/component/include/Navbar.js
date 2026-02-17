@@ -68,26 +68,12 @@ function Navbar() {
               </Link>
             </li>
 
-            {/* Employee Dropdown */}
-            <li className="nav-item dropdown">
-              <a
-                className="nav-link dropdown-toggle"
-                href="#"
-                role="button"
-                data-bs-toggle="dropdown"
-              >
-                <i className="bi bi-people me-1"></i> Employee
-              </a>
-              <ul className="dropdown-menu dropdown-menu-end">
-                <li>
-                  <Link className="dropdown-item" to="/Employee">
-                    <i className="bi bi-person-lines-fill me-2"></i>
-                    Employee List
-                  </Link>
-                </li>
-              </ul>
+            <li className="nav-item">
+              <Link className="nav-link" to="/Employee">
+                <i className="bi bi-cash-stack me-1"></i> Staff
+              </Link>
             </li>
-
+      
           </ul>
         </div>
       </div>

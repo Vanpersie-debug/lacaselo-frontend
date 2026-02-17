@@ -2,184 +2,153 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 function Billiard() {
-  const [tables, setTables] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [editValues, setEditValues] = useState({ price_per_hour: "" });
+  const [records, setRecords] = useState([]);
+  const [date, setDate] = useState("");
+  const [token, setToken] = useState("");
+  const [cash, setCash] = useState("");
+  const [cashMomo, setCashMomo] = useState("");
 
   const API_URL = "http://localhost:5000/api/billiard";
 
-  // Fetch billiard tables
-  const fetchTables = async () => {
+  // Fetch all records
+  const fetchData = async () => {
     try {
       const res = await axios.get(API_URL);
-      setTables(res.data);
+      setRecords(res.data);
     } catch (err) {
-      console.error("Error fetching tables:", err);
+      console.error("Error fetching billiard records:", err);
     }
   };
 
   useEffect(() => {
-    fetchTables();
+    fetchData();
   }, []);
 
-  // Add new table
-  const handleAdd = async () => {
-    const table_name = prompt("Enter table name:");
-    const price_per_hour = prompt("Enter price per hour:");
-
-    if (table_name && price_per_hour) {
-      try {
-        const res = await axios.post(API_URL, {
-          table_name,
-          price_per_hour: Number(price_per_hour),
-        });
-        setTables([...tables, res.data]);
-      } catch (err) {
-        console.error("Error adding table:", err);
-      }
-    }
-  };
-
-  // Edit table
-  const handleEditClick = (item) => {
-    setEditingId(item.id);
-    setEditValues({ price_per_hour: item.price_per_hour });
-  };
-
-  const handleSave = async (id) => {
-    try {
-      await axios.put(`${API_URL}/${id}`, {
-        price_per_hour: Number(editValues.price_per_hour),
-      });
-
-      setTables(
-        tables.map((item) =>
-          item.id === id
-            ? { ...item, price_per_hour: Number(editValues.price_per_hour) }
-            : item
-        )
-      );
-      setEditingId(null);
-    } catch (err) {
-      console.error("Error updating table:", err);
-    }
-  };
-
-  const handleCancel = () => setEditingId(null);
-
-  // Record session
-  const handlePlay = async (id) => {
-    const hoursStr = prompt("Enter hours played:");
-    const hours = Number(hoursStr);
-
-    if (isNaN(hours) || hours <= 0) {
-      alert("Please enter a valid number of hours.");
+  // Add new record
+  const handleSubmit = async () => {
+    if (!date || token < 0 || cash < 0 || cashMomo < 0) {
+      alert("Fill all fields correctly");
       return;
     }
 
     try {
-      await axios.post(`${API_URL}/play/${id}`, { hours });
-      setTables(
-        tables.map((t) =>
-          t.id === id
-            ? {
-                ...t,
-                hours_played: t.hours_played + hours,
-                total_income: t.total_income + hours * t.price_per_hour,
-              }
-            : t
-        )
-      );
+      await axios.post(API_URL, {
+        date,
+        token: Number(token),
+        cash: Number(cash),
+        cash_momo: Number(cashMomo),
+      });
+
+      // Reset inputs
+      setDate("");
+      setToken("");
+      setCash("");
+      setCashMomo("");
+
+      fetchData();
     } catch (err) {
-      console.error("Error recording session:", err);
+      console.error("Error adding billiard record:", err);
     }
   };
 
+  // Calculate daily totals
+  const totalToken = records.reduce((sum, r) => sum + (r.token || 0), 0);
+  const totalCash = records.reduce((sum, r) => sum + (r.cash || 0), 0);
+  const totalMomo = records.reduce((sum, r) => sum + (r.cash_momo || 0), 0);
+  const grandTotal = records.reduce((sum, r) => sum + (r.total || 0), 0);
+
   return (
     <div className="container mt-4">
+      {/* Input Form */}
       <div className="card shadow mb-4">
-        <div className="card-body d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
-          <h2 className="mb-2 mb-md-0">Billiard Tables</h2>
-          <button className="btn btn-success w-100 w-md-auto" onClick={handleAdd}>
-            + Add Table
-          </button>
+        <div className="card-body">
+          <h3 className="mb-3">Billiard Daily Record</h3>
+          <div className="row g-2">
+            <div className="col-md-3">
+              <input
+                type="date"
+                className="form-control"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+              />
+            </div>
+            <div className="col-md-2">
+              <input
+                type="number"
+                className="form-control"
+                placeholder="Token"
+                value={token}
+                onChange={e => setToken(e.target.value)}
+              />
+            </div>
+            <div className="col-md-2">
+              <input
+                type="number"
+                className="form-control"
+                placeholder="Cash (RWF)"
+                value={cash}
+                onChange={e => setCash(e.target.value)}
+              />
+            </div>
+            <div className="col-md-2">
+              <input
+                type="number"
+                className="form-control"
+                placeholder="Cash (MOMO)"
+                value={cashMomo}
+                onChange={e => setCashMomo(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <button className="btn btn-success w-100" onClick={handleSubmit}>
+                Add Record
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Data Table */}
       <div className="card shadow">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
             <thead className="table-dark">
               <tr>
                 <th>#</th>
-                <th>Table Name</th>
-                <th>Price/Hour (RWF)</th>
-                <th>Hours Played</th>
-                <th>Total Income (RWF)</th>
-                <th>Actions</th>
+                <th>Date</th>
+                <th>Token</th>
+                <th>Cash (RWF)</th>
+                <th>Cash (MOMO)</th>
+                <th>Total</th>
               </tr>
             </thead>
             <tbody>
-              {tables.length === 0 ? (
+              {records.length === 0 ? (
                 <tr>
-                  <td colSpan="6">No billiard tables available</td>
+                  <td colSpan="6">No billiard records</td>
                 </tr>
               ) : (
-                tables.map((table, index) => (
-                  <tr key={table.id}>
-                    <td>{index + 1}</td>
-                    <td>{table.table_name}</td>
-                    <td>
-                      {editingId === table.id ? (
-                        <input
-                          type="number"
-                          value={editValues.price_per_hour}
-                          onChange={(e) =>
-                            setEditValues({ price_per_hour: e.target.value })
-                          }
-                          className="form-control form-control-sm"
-                        />
-                      ) : (
-                        table.price_per_hour
-                      )}
-                    </td>
-                    <td>{table.hours_played}</td>
-                    <td>{table.total_income}</td>
-                    <td>
-                      {editingId === table.id ? (
-                        <>
-                          <button
-                            className="btn btn-sm btn-success me-2"
-                            onClick={() => handleSave(table.id)}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="btn btn-sm btn-secondary"
-                            onClick={handleCancel}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            className="btn btn-sm btn-primary me-2"
-                            onClick={() => handleEditClick(table)}
-                          >
-                            Update
-                          </button>
-                          <button
-                            className="btn btn-sm btn-warning"
-                            onClick={() => handlePlay(table.id)}
-                          >
-                            Play
-                          </button>
-                        </>
-                      )}
-                    </td>
+                records.map((r, i) => (
+                  <tr key={r.id}>
+                    <td>{i + 1}</td>
+                    <td>{r.date}</td>
+                    <td>{r.token || 0}</td>
+                    <td>{r.cash || 0}</td>
+                    <td>{r.cash_momo || 0}</td>
+                    <td>{r.total || 0}</td>
                   </tr>
                 ))
+              )}
+
+              {/* Daily Summary */}
+              {records.length > 0 && (
+                <tr className="table-secondary fw-bold">
+                  <td colSpan="2">Daily Summary</td>
+                  <td>{totalToken}</td>
+                  <td>{totalCash}</td>
+                  <td>{totalMomo}</td>
+                  <td>{grandTotal}</td>
+                </tr>
               )}
             </tbody>
           </table>
