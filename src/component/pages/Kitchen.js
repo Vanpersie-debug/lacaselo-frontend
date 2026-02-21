@@ -6,21 +6,56 @@ function Kitchen() {
 
   const [foods, setFoods] = useState([]);
   const [selectedDate, setSelectedDate] = useState(today);
-  const [totalEarned, setTotalEarned] = useState(0); // total money from sold food
+  const [loading, setLoading] = useState(false);
 
-  const API_URL = "https://backend-vitq.onrender.com/api/kitchen";
+  const [totalSales, setTotalSales] = useState(0);
+  const [totalProfit, setTotalProfit] = useState(0);
+  const [totalStockValue, setTotalStockValue] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
 
-  // ================= FETCH FOODS =================
+  const API_URL = "https://backend-vitq.onrender.com/api/kitchen_product";
+
   const fetchFoods = async (date) => {
     try {
+      setLoading(true);
       const res = await axios.get(API_URL, { params: { date } });
-      // Backend response: { foods: [...], totalEarned: 12345 }
-      setFoods(res.data.foods || []);
-      setTotalEarned(res.data.totalEarned || 0);
+      const foodList = res.data.foods || [];
+      setFoods(foodList);
+
+      let salesSum = 0;
+      let profitSum = 0;
+      let stockValueSum = 0;
+      let lowStock = 0;
+
+      foodList.forEach((f) => {
+        const opening = Number(f.opening_stock || 0);
+        const entree = Number(f.entree || 0);
+        const sold = Number(f.sold || 0);
+        const price = Number(f.price || 0);
+        const cost = Number(f.initial_price || 0);
+        const closing = opening + entree - sold;
+
+        salesSum += sold * price;
+        profitSum += sold * (price - cost);
+        stockValueSum += closing * cost;
+
+        if (closing < 5) lowStock += 1;
+      });
+
+      setTotalSales(salesSum);
+      setTotalProfit(profitSum);
+      setTotalStockValue(stockValueSum);
+      setLowStockCount(lowStock);
+
     } catch (err) {
       console.error("Error fetching kitchen data:", err);
       setFoods([]);
-      setTotalEarned(0);
+      setTotalSales(0);
+      setTotalProfit(0);
+      setTotalStockValue(0);
+      setLowStockCount(0);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -28,30 +63,36 @@ function Kitchen() {
     fetchFoods(selectedDate);
   }, [selectedDate]);
 
-  // ================= CHANGE DATE =================
   const changeDate = (days) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
-
     const formatted = newDate.toISOString().split("T")[0];
-    if (formatted > today) return; // prevent future
-
+    if (formatted > today) return;
     setSelectedDate(formatted);
   };
 
-  // ================= ADD FOOD =================
   const handleAdd = async () => {
     const name = prompt("Food name:");
-    const price = prompt("Price:");
-    const quantity = prompt("Opening stock:");
+    if (!name) return alert("Name is required");
 
-    if (!name || !price || !quantity) return;
+    const initial_price = Number(prompt("Cost (RWF):")) || 0;
+    const price = Number(prompt("Selling price (RWF):")) || 0;
+    const opening_stock = Number(prompt("Opening stock:")) || 0;
+    const entree = Number(prompt("Stock in:")) || 0;
+    const sold = Number(prompt("Sold quantity:")) || 0;
+    const momo = Number(prompt("Momo amount:")) || 0;
+    const cash = Number(prompt("Cash amount:")) || 0;
 
     try {
       await axios.post(API_URL, {
         name,
-        price: Number(price),
-        quantity: Number(quantity),
+        initial_price,
+        price,
+        opening_stock,
+        entree,
+        sold,
+        momo,
+        cash,
         date: selectedDate,
       });
       fetchFoods(selectedDate);
@@ -60,79 +101,99 @@ function Kitchen() {
     }
   };
 
-  // ================= UPDATE ENTREE =================
   const handleEntreeChange = async (id, value) => {
     const entreeValue = Number(value);
 
     setFoods((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, entree: entreeValue } : f))
+      prev.map((f) =>
+        f.id === id ? { ...f, entree: entreeValue } : f
+      )
     );
 
     try {
-      await axios.put(`${API_URL}/entree/${id}`, {
-        entree: entreeValue,
-        date: selectedDate,
-      });
-      fetchFoods(selectedDate); // refresh totalEarned
+      await axios.put(`${API_URL}/entree/${id}`, { entree: entreeValue, date: selectedDate });
+      fetchFoods(selectedDate);
     } catch (err) {
       console.error("Error updating entree:", err);
     }
   };
 
-  // ================= UPDATE SOLD =================
   const handleSoldChange = async (id, value) => {
     const soldValue = Number(value);
 
     setFoods((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, sold: soldValue } : f))
+      prev.map((f) =>
+        f.id === id ? { ...f, sold: soldValue } : f
+      )
     );
 
     try {
-      await axios.put(`${API_URL}/sold/${id}`, {
-        sold: soldValue,
-        date: selectedDate,
-      });
-      fetchFoods(selectedDate); // refresh totalEarned
+      await axios.put(`${API_URL}/sold/${id}`, { sold: soldValue, date: selectedDate });
+      fetchFoods(selectedDate);
     } catch (err) {
       console.error("Error updating sold:", err);
     }
   };
 
+  const formatNumber = (value) => Number(value || 0).toLocaleString();
+
   return (
-    <div className="container mt-4">
+    <div className="container-fluid mt-4">
 
-      {/* HEADER */}
-      <div className="card shadow mb-4 p-3 d-flex justify-content-between align-items-center">
-        <h2>Kitchen Inventory</h2>
+      {/* ===== SUMMARY CARDS ===== */}
+      <div className="row g-4 mb-4">
 
-        <div className="d-flex align-items-center gap-2">
-          <button
-            className="btn btn-outline-secondary btn-sm"
-            onClick={() => changeDate(-1)}
-          >
-            ◀
-          </button>
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
+            <div className="card-body text-center">
+              <h6>Total Sales</h6>
+              <h4>RWF {formatNumber(totalSales)}</h4>
+            </div>
+          </div>
+        </div>
 
-          <strong>{selectedDate}</strong>
+        <div className="col-md-3">
+          <div className="card shadow border-0" style={{ backgroundColor: "#D4AF37", color: "#000" }}>
+            <div className="card-body text-center">
+              <h6>Total Profit</h6>
+              <h4>RWF {formatNumber(totalProfit)}</h4>
+            </div>
+          </div>
+        </div>
 
-          <button
-            className="btn btn-outline-secondary btn-sm"
-            onClick={() => changeDate(1)}
-            disabled={selectedDate === today}
-          >
-            ▶
-          </button>
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0E6251" }}>
+            <div className="card-body text-center">
+              <h6>Total Stock Value</h6>
+              <h4>RWF {formatNumber(totalStockValue)}</h4>
+            </div>
+          </div>
+        </div>
 
-          <button
-            className="btn btn-success ms-3"
-            onClick={handleAdd}
-          >
-            + Add Food
-          </button>
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#C0392B" }}>
+            <div className="card-body text-center">
+              <h6>Low Stock Items</h6>
+              <h4>{lowStockCount}</h4>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* TABLE */}
+      {/* ===== HEADER ===== */}
+      <div className="card shadow mb-4">
+        <div className="card-body d-flex justify-content-between align-items-center">
+          <h4 className="fw-bold mb-0">Kitchen</h4>
+          <div className="d-flex align-items-center gap-2">
+            <button className="btn btn-outline-dark btn-sm" onClick={() => changeDate(-1)}>◀</button>
+            <strong>{selectedDate}</strong>
+            <button className="btn btn-outline-dark btn-sm" onClick={() => changeDate(1)} disabled={selectedDate === today}>▶</button>
+            <button className="btn btn-success ms-3" onClick={handleAdd}>+ Add Food</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== TABLE ===== */}
       <div className="card shadow">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
@@ -140,71 +201,64 @@ function Kitchen() {
               <tr>
                 <th>#</th>
                 <th>Food</th>
-                <th>Price (RWF)</th>
-                <th>Opening Stock</th>
-                <th>Entree</th>
-                <th>Total Stock</th>
+                <th>Cost</th>
+                <th>Selling</th>
+                <th>Opening</th>
+                <th>Stock In</th>
+                <th>Total</th>
                 <th>Sold</th>
-                <th>Total Sold (RWF)</th>
-                <th>Closing Stock</th>
+                <th>Closing</th>
+                <th>Sales</th>
+                <th>Momo</th>
+                <th>Cash</th>
               </tr>
             </thead>
-
             <tbody>
-              {foods.length === 0 ? (
-                <tr>
-                  <td colSpan="9">No food items for this date</td>
-                </tr>
+              {loading ? (
+                <tr><td colSpan="12">Loading...</td></tr>
+              ) : foods.length === 0 ? (
+                <tr><td colSpan="12">No food items for this date</td></tr>
               ) : (
-                foods.map((food, index) => {
-                  const openingStock = Number(food.quantity);
-                  const entree = Number(food.entree || 0);
-                  const sold = Number(food.sold || 0);
-                  const price = Number(food.price);
+                foods.map((f, i) => {
+                  const opening = Number(f.opening_stock || 0);
+                  const entree = Number(f.entree || 0);
+                  const sold = Number(f.sold || 0);
+                  const price = Number(f.price || 0);
+                  const cost = Number(f.initial_price || 0);
 
-                  const totalStock = openingStock + entree;
+                  const total = opening + entree;
                   const totalSold = sold * price;
-                  const closingStock = totalStock - sold;
+                  const closing = total - sold;
+                  const isLow = closing < 5;
 
                   return (
-                    <tr key={food.id}>
-                      <td>{index + 1}</td>
-                      <td>{food.name}</td>
-                      <td>{price}</td>
-                      <td>{openingStock}</td>
-
-                      {/* ENTREE INPUT */}
+                    <tr key={f.id}>
+                      <td>{i + 1}</td>
+                      <td>{f.name}{isLow && <span className="badge bg-danger ms-2">Low</span>}</td>
+                      <td>{formatNumber(cost)}</td>
+                      <td>{formatNumber(price)}</td>
+                      <td>{opening}</td>
                       <td>
                         <input
                           type="number"
                           className="form-control form-control-sm"
                           value={entree}
-                          onChange={(e) =>
-                            handleEntreeChange(food.id, e.target.value)
-                          }
+                          onChange={(e) => handleEntreeChange(f.id, e.target.value)}
                         />
                       </td>
-
-                      {/* TOTAL STOCK */}
-                      <td>{totalStock}</td>
-
-                      {/* SOLD INPUT */}
+                      <td>{total}</td>
                       <td>
                         <input
                           type="number"
                           className="form-control form-control-sm"
                           value={sold}
-                          onChange={(e) =>
-                            handleSoldChange(food.id, e.target.value)
-                          }
+                          onChange={(e) => handleSoldChange(f.id, e.target.value)}
                         />
                       </td>
-
-                      {/* TOTAL SOLD */}
-                      <td>{totalSold}</td>
-
-                      {/* CLOSING STOCK */}
-                      <td>{closingStock}</td>
+                      <td className={isLow ? "text-danger fw-bold" : ""}>{closing}</td>
+                      <td className="text-success fw-bold">{formatNumber(totalSold)}</td>
+                      <td>{formatNumber(f.momo)}</td>
+                      <td>{formatNumber(f.cash)}</td>
                     </tr>
                   );
                 })
@@ -212,11 +266,6 @@ function Kitchen() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* TOTAL EARNED */}
-      <div className="mt-2 text-end fw-bold fs-5">
-        Total Earned (RWF): {totalEarned}
       </div>
     </div>
   );

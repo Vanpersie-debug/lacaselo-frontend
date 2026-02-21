@@ -2,6 +2,9 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import Navbar from "./component/include/Navbar";
+import Layout from "./component/layout/Layout";
+import Sidebar from "./component/layout/Sidebar";
+
 
 import Home from "./component/pages/Home";
 import Bar from "./component/pages/Bar";

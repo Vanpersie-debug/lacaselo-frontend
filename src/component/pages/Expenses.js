@@ -1,262 +1,195 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
 
 function Expenses() {
+  const today = new Date().toISOString().split("T")[0];
   const [expenses, setExpenses] = useState([]);
-  const [activeTable, setActiveTable] = useState("bar");
-  const [editingId, setEditingId] = useState(null);
-  const [editValues, setEditValues] = useState({
-    expense_name: "",
-    amount: "",
-    date: "",
-    is_profit: 0,
-    category: "",
-  });
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [loading, setLoading] = useState(false);
 
-  const navigate = useNavigate();
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [totalBar, setTotalBar] = useState(0);
+  const [totalKitchen, setTotalKitchen] = useState(0);
+  const [totalUnprofitable, setTotalUnprofitable] = useState(0);
+
   const API_URL = "https://backend-vitq.onrender.com/api/expenses";
 
-  // ================= FETCH =================
-  const fetchExpenses = async () => {
+  // ===== FETCH DATA =====
+  const fetchExpenses = async (date) => {
     try {
-      const res = await axios.get(API_URL);
-      setExpenses(res.data);
+      setLoading(true);
+      const res = await axios.get(API_URL, { params: { date } });
+      const data = res.data || [];
+      setExpenses(data);
+      recalcTotals(data);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching expenses:", err);
+      setExpenses([]);
+      setTotalExpenses(0);
+      setTotalBar(0);
+      setTotalKitchen(0);
+      setTotalUnprofitable(0);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchExpenses();
-  }, []);
+    fetchExpenses(selectedDate);
+  }, [selectedDate]);
 
-  // ================= ADD =================
+  // ===== RECALCULATE TOTALS =====
+  const recalcTotals = (data) => {
+    let total = 0, bar = 0, kitchen = 0, unprofitable = 0;
+    data.forEach((e) => {
+      const amount = Number(e.amount || 0);
+      total += amount;
+      if (e.category === "bar") bar += amount;
+      else if (e.category === "kitchen") kitchen += amount;
+      else if (e.category === "unprofitable") unprofitable += amount;
+    });
+    setTotalExpenses(total);
+    setTotalBar(bar);
+    setTotalKitchen(kitchen);
+    setTotalUnprofitable(unprofitable);
+  };
+
+  // ===== ADD NEW EXPENSE =====
   const handleAdd = async () => {
-    const expense_name = prompt("Expense Name:");
-    const amount = Number(prompt("Amount:"));
-    const date = prompt("Date (YYYY-MM-DD):");
+    const name = prompt("Expense Name:");
+    if (!name) return alert("Expense name is required");
 
-    const category = activeTable;
-    const is_profit = category === "unprofitable" ? 0 : 1;
-
-    if (!expense_name || isNaN(amount) || !date) {
-      alert("Invalid input");
-      return;
-    }
+    const amount = Number(prompt("Amount:")) || 0;
+    const category = prompt("Category (bar/kitchen/unprofitable):") || "unprofitable";
 
     try {
-      const res = await axios.post(API_URL, {
-        expense_name,
-        amount,
-        date,
-        category,
-        is_profit,
-      });
-
-      setExpenses([...expenses, res.data]);
+      const res = await axios.post(API_URL, { date: selectedDate, expense_name: name, amount, category, is_profit: 0 });
+      const newData = [res.data, ...expenses];
+      setExpenses(newData);
+      recalcTotals(newData);
     } catch (err) {
-      console.error(err);
+      console.error("Error adding expense:", err);
     }
   };
 
-  // ================= EDIT =================
-  const handleEditClick = (exp) => {
-    setEditingId(exp.id);
-    setEditValues(exp);
+  // ===== EDIT FIELD =====
+  const handleChange = (id, field, value) => {
+    const updatedData = expenses.map((e) => (e.id === id ? { ...e, [field]: value } : e));
+    setExpenses(updatedData);
+    recalcTotals(updatedData);
+
+    axios.put(`${API_URL}/${id}`, { [field]: value }).catch((err) => console.error(err));
   };
 
-  const handleSave = async (id) => {
-    try {
-      await axios.put(`${API_URL}/${id}`, editValues);
-      setExpenses(
-        expenses.map((e) => (e.id === id ? editValues : e))
-      );
-      setEditingId(null);
-    } catch (err) {
-      console.error(err);
-    }
+  const formatNumber = (value) => Number(value || 0).toLocaleString();
+
+  // ===== DATE CHANGE =====
+  const changeDate = (days) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+    const formatted = newDate.toISOString().split("T")[0];
+    if (formatted > today) return;
+    setSelectedDate(formatted);
+    fetchExpenses(formatted);
   };
-
-  const handleCancel = () => setEditingId(null);
-
-  // ================= FILTER =================
-  const filteredExpenses = expenses.filter((e) => {
-    if (activeTable === "unprofitable") return e.is_profit === 0;
-    return e.category === activeTable;
-  });
 
   return (
-    <div className="container mt-4">
+    <div className="container-fluid mt-4">
 
-      {/* ================= HEADER ================= */}
-      <div className="card shadow mb-3 p-3 d-flex flex-row justify-content-between align-items-center">
-        
-        <h3 className="mb-0 text-capitalize">
-          {activeTable} Expenses
-        </h3>
+      {/* ===== SUMMARY CARDS ===== */}
+      <div className="row g-4 mb-4">
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
+            <div className="card-body text-center">
+              <h6>Total Expenses</h6>
+              <h4>RWF {formatNumber(totalExpenses)}</h4>
+            </div>
+          </div>
+        </div>
 
-        <div className="d-flex align-items-center">
+        <div className="col-md-3">
+          <div className="card shadow border-0" style={{ backgroundColor: "#D4AF37", color: "#000" }}>
+            <div className="card-body text-center">
+              <h6>Bar Expenses</h6>
+              <h4>RWF {formatNumber(totalBar)}</h4>
+            </div>
+          </div>
+        </div>
 
-          <button
-            className="btn btn-outline-primary me-2"
-            onClick={() => setActiveTable("bar")}
-          >
-            Bar Expenses
-          </button>
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0E6251" }}>
+            <div className="card-body text-center">
+              <h6>Kitchen Expenses</h6>
+              <h4>RWF {formatNumber(totalKitchen)}</h4>
+            </div>
+          </div>
+        </div>
 
-          <button
-            className="btn btn-outline-warning me-2"
-            onClick={() => setActiveTable("kitchen")}
-          >
-            Kitchen Expenses
-          </button>
-
-          <button
-            className="btn btn-outline-danger me-2"
-            onClick={() => setActiveTable("unprofitable")}
-          >
-            Unprofitable Expenses
-          </button>
-
-          {/* NEW CREDITS BUTTON */}
-          <button
-            className="btn btn-dark me-2"
-            onClick={() => navigate("/credits")}
-          >
-            Credits
-          </button>
-
-          <button className="btn btn-success" onClick={handleAdd}>
-            + Add
-          </button>
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#C0392B" }}>
+            <div className="card-body text-center">
+              <h6>Unprofitable</h6>
+              <h4>RWF {formatNumber(totalUnprofitable)}</h4>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ================= TABLE ================= */}
+      {/* ===== HEADER ===== */}
+      <div className="card shadow mb-4">
+        <div className="card-body d-flex justify-content-between align-items-center">
+          <h4 className="fw-bold mb-0">Expenses</h4>
+          <div className="d-flex gap-2">
+            <button className="btn btn-outline-dark btn-sm" onClick={() => changeDate(-1)}>◀</button>
+            <strong>{selectedDate}</strong>
+            <button className="btn btn-outline-dark btn-sm" onClick={() => changeDate(1)} disabled={selectedDate === today}>▶</button>
+            <button className="btn btn-success ms-3" onClick={handleAdd}>+ Add Expense</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== TABLE ===== */}
       <div className="card shadow">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
             <thead className="table-dark">
               <tr>
                 <th>#</th>
-                <th>Date</th>
                 <th>Name</th>
                 <th>Amount</th>
-                <th>Profit?</th>
-                <th>Action</th>
+                <th>Category</th>
               </tr>
             </thead>
-
             <tbody>
-              {filteredExpenses.length === 0 ? (
-                <tr>
-                  <td colSpan="6">No records found</td>
-                </tr>
+              {loading ? (
+                <tr><td colSpan="4">Loading...</td></tr>
+              ) : expenses.length === 0 ? (
+                <tr><td colSpan="4">No expenses for this date</td></tr>
               ) : (
-                filteredExpenses.map((exp, i) => (
-                  <tr key={exp.id}>
+                expenses.map((e, i) => (
+                  <tr key={e.id}>
                     <td>{i + 1}</td>
-
-                    {/* DATE */}
                     <td>
-                      {editingId === exp.id ? (
-                        <input
-                          type="date"
-                          className="form-control form-control-sm"
-                          value={editValues.date}
-                          onChange={(e) =>
-                            setEditValues({
-                              ...editValues,
-                              date: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        exp.date
-                      )}
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        value={e.expense_name}
+                        onChange={(ev) => handleChange(e.id, "expense_name", ev.target.value)}
+                      />
                     </td>
-
-                    {/* NAME */}
                     <td>
-                      {editingId === exp.id ? (
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          value={editValues.expense_name}
-                          onChange={(e) =>
-                            setEditValues({
-                              ...editValues,
-                              expense_name: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        exp.expense_name
-                      )}
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={e.amount}
+                        onChange={(ev) => handleChange(e.id, "amount", ev.target.value)}
+                      />
                     </td>
-
-                    {/* AMOUNT */}
-                    <td>
-                      {editingId === exp.id ? (
-                        <input
-                          type="number"
-                          className="form-control form-control-sm"
-                          value={editValues.amount}
-                          onChange={(e) =>
-                            setEditValues({
-                              ...editValues,
-                              amount: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        exp.amount
-                      )}
-                    </td>
-
-                    {/* PROFIT STATUS */}
-                    <td>
-                      {exp.is_profit === 1 ? (
-                        <span className="badge bg-success">Yes</span>
-                      ) : (
-                        <span className="badge bg-danger">No</span>
-                      )}
-                    </td>
-
-                    {/* ACTION */}
-                    <td>
-                      {editingId === exp.id ? (
-                        <>
-                          <button
-                            className="btn btn-sm btn-success me-2"
-                            onClick={() => handleSave(exp.id)}
-                          >
-                            Save
-                          </button>
-
-                          <button
-                            className="btn btn-sm btn-secondary"
-                            onClick={handleCancel}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => handleEditClick(exp)}
-                        >
-                          Update
-                        </button>
-                      )}
-                    </td>
-
+                    <td>{e.category}</td>
                   </tr>
                 ))
               )}
             </tbody>
-
           </table>
         </div>
       </div>

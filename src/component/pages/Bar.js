@@ -7,20 +7,48 @@ function Bar() {
   const [products, setProducts] = useState([]);
   const [selectedDate, setSelectedDate] = useState(today);
   const [totalEarned, setTotalEarned] = useState(0);
+  const [totalProfit, setTotalProfit] = useState(0);
+  const [totalStockValue, setTotalStockValue] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const API_URL = "https://backend-vitq.onrender.com/api/drinks";
 
-  // ================= FETCH PRODUCTS =================
   const fetchProducts = async (date) => {
     try {
+      setLoading(true);
       const res = await axios.get(API_URL, { params: { date } });
-      // res.data = { products: [...], totalEarned: 7500 }
-      setProducts(res.data.products || []);       // ensure it's always an array
+
+      const prods = res.data.products || [];
+
+      setProducts(prods);
       setTotalEarned(res.data.totalEarned || 0);
+
+      // calculate totals
+      const profitSum = prods.reduce(
+        (sum, p) => sum + (Number(p.profit) || 0),
+        0
+      );
+
+      const stockValue = prods.reduce(
+        (sum, p) =>
+          sum +
+          (Number(p.closing_stock) || 0) *
+            (Number(p.initial_price) || 0),
+        0
+      );
+
+      const lowStock = prods.filter(
+        (p) => Number(p.closing_stock) < 5
+      ).length;
+
+      setTotalProfit(profitSum);
+      setTotalStockValue(stockValue);
+      setLowStockCount(lowStock);
     } catch (err) {
       console.error("Error fetching products:", err);
-      setProducts([]);
-      setTotalEarned(0);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -28,184 +56,202 @@ function Bar() {
     fetchProducts(selectedDate);
   }, [selectedDate]);
 
-  // ================= CHANGE DATE =================
   const changeDate = (days) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
-
     const formatted = newDate.toISOString().split("T")[0];
     if (formatted > today) return;
-
     setSelectedDate(formatted);
   };
 
-  // ================= ADD PRODUCT =================
   const handleAdd = async () => {
     const name = prompt("Product name:");
-    const price = prompt("Price:");
-    const quantity = prompt("Opening stock:");
+    if (!name) return alert("Name is required");
 
-    if (!name || !price || !quantity) return;
+    const initial_price = Number(prompt("Cost (Initial price):")) || 0;
+    const price = Number(prompt("Selling price:")) || 0;
+    const opening_stock = Number(prompt("Opening stock:")) || 0;
 
     try {
       await axios.post(API_URL, {
         name,
-        price: Number(price),
-        quantity: Number(quantity),
+        initial_price,
+        price,
+        opening_stock,
         date: selectedDate,
       });
-
       fetchProducts(selectedDate);
     } catch (err) {
       console.error("Error adding product:", err);
     }
   };
 
-  // ================= UPDATE ENTREE =================
   const handleEntreeChange = async (id, value) => {
     const entreeValue = Number(value);
-
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, entree: entreeValue } : p))
     );
-
     try {
-      await axios.put(`${API_URL}/entree/${id}`, {
+      await axios.put(`${API_URL}/${id}`, {
         entree: entreeValue,
         date: selectedDate,
       });
-      fetchProducts(selectedDate); // refresh totalEarned
+      fetchProducts(selectedDate);
     } catch (err) {
       console.error("Error updating entree:", err);
     }
   };
 
-  // ================= UPDATE SOLD =================
   const handleSoldChange = async (id, value) => {
     const soldValue = Number(value);
-
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, sold: soldValue } : p))
     );
-
     try {
-      await axios.put(`${API_URL}/sold/${id}`, {
+      await axios.put(`${API_URL}/${id}`, {
         sold: soldValue,
         date: selectedDate,
       });
-      fetchProducts(selectedDate); // refresh totalEarned
+      fetchProducts(selectedDate);
     } catch (err) {
       console.error("Error updating sold:", err);
     }
   };
 
+  const formatNumber = (value) => Number(value || 0).toLocaleString();
+
   return (
-    <div className="container mt-4">
+    <div className="container-fluid mt-4">
 
-      {/* HEADER */}
-      <div className="card shadow mb-4 p-3 d-flex justify-content-between align-items-center">
-        <h2>Bar</h2>
+      {/* ===== SUMMARY CARDS ===== */}
+      <div className="row g-4 mb-4">
+        {/* Total Sales */}
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
+            <div className="card-body">
+              <h6>Total Sales</h6>
+              <h4>RWF {formatNumber(totalEarned)}</h4>
+            </div>
+          </div>
+        </div>
 
-        <div className="d-flex align-items-center gap-2">
-          <button
-            className="btn btn-outline-secondary btn-sm"
-            onClick={() => changeDate(-1)}
-          >
-            ◀
-          </button>
+        {/* Total Profit */}
+        <div className="col-md-3">
+          <div className="card shadow border-0" style={{ backgroundColor: "#D4AF37", color: "#000" }}>
+            <div className="card-body">
+              <h6>Total Profit</h6>
+              <h4>RWF {formatNumber(totalProfit)}</h4>
+            </div>
+          </div>
+        </div>
 
-          <strong>{selectedDate}</strong>
+        {/* Total Stock Value */}
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0E6251" }}>
+            <div className="card-body">
+              <h6>Total Stock Value</h6>
+              <h4>RWF {formatNumber(totalStockValue)}</h4>
+            </div>
+          </div>
+        </div>
 
-          <button
-            className="btn btn-outline-secondary btn-sm"
-            onClick={() => changeDate(1)}
-            disabled={selectedDate === today}
-          >
-            ▶
-          </button>
-
-          <button
-            className="btn btn-success ms-3"
-            onClick={handleAdd}
-          >
-            + Add Product
-          </button>
+        {/* Low Stock Items */}
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#C0392B" }}>
+            <div className="card-body">
+              <h6>Low Stock Items</h6>
+              <h4>{lowStockCount}</h4>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="card shadow">
+      {/* ===== HEADER ===== */}
+      <div className="card shadow border-0 mb-4">
+        <div className="card-body d-flex justify-content-between align-items-center">
+          <h4 className="fw-bold mb-0">Bar</h4>
+
+          <div className="d-flex align-items-center gap-2">
+            <button className="btn btn-outline-dark btn-sm" onClick={() => changeDate(-1)}>◀</button>
+            <strong>{selectedDate}</strong>
+            <button
+              className="btn btn-outline-dark btn-sm"
+              onClick={() => changeDate(1)}
+              disabled={selectedDate === today}
+            >▶</button>
+
+            <button className="btn btn-success ms-3" onClick={handleAdd}>+ Add Product</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== TABLE ===== */}
+      <div className="card shadow border-0">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
             <thead className="table-dark">
               <tr>
                 <th>#</th>
-                <th>Product Name</th>
-                <th>Price (RWF)</th>
-                <th>Opening Stock</th>
-                <th>Entree</th>
-                <th>Total Stock</th>
+                <th>Product</th>
+                <th>Cost</th>
+                <th>Selling</th>
+                <th>Opening</th>
+                <th>Stock In</th>
+                <th>Total</th>
                 <th>Sold</th>
-                <th>Total Sold (RWF)</th>
-                <th>Closing Stock</th>
+                <th>Closing</th>
+                <th>Sales</th>
+                <th>Momo</th>
+                <th>Cash</th>
               </tr>
             </thead>
-
             <tbody>
-              {products.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan="9">No products for this date</td>
+                  <td colSpan="12">Loading...</td>
+                </tr>
+              ) : products.length === 0 ? (
+                <tr>
+                  <td colSpan="12">No report entered yet for this date</td>
                 </tr>
               ) : (
-                products.map((product, index) => {
-                  const openingStock = Number(product.quantity);
-                  const entree = Number(product.entree || 0);
-                  const sold = Number(product.sold || 0);
-                  const price = Number(product.price);
-
-                  const totalStock = openingStock + entree;
-                  const totalSold = sold * price;
-                  const closingStock = totalStock - sold;
+                products.map((p, i) => {
+                  const totalStock = (Number(p.opening_stock) || 0) + (Number(p.entree) || 0);
+                  const totalSold = (Number(p.sold) || 0) * (Number(p.price) || 0);
+                  const profit = (Number(p.sold) || 0) * ((Number(p.price) || 0) - (Number(p.initial_price) || 0));
+                  const closing = totalStock - (Number(p.sold) || 0);
+                  const isLow = closing < 5;
 
                   return (
-                    <tr key={product.id}>
-                      <td>{index + 1}</td>
-                      <td>{product.name}</td>
-                      <td>{price}</td>
-                      <td>{openingStock}</td>
-
-                      {/* ENTREE INPUT */}
+                    <tr key={p.id}>
+                      <td>{i + 1}</td>
+                      <td>
+                        {p.name} {isLow && <span className="badge bg-danger ms-2">Low</span>}
+                      </td>
+                      <td>{formatNumber(p.initial_price)}</td>
+                      <td>{formatNumber(p.price)}</td>
+                      <td>{p.opening_stock}</td>
                       <td>
                         <input
                           type="number"
                           className="form-control form-control-sm"
-                          value={entree}
-                          onChange={(e) =>
-                            handleEntreeChange(product.id, e.target.value)
-                          }
+                          value={p.entree}
+                          onChange={(e) => handleEntreeChange(p.id, e.target.value)}
                         />
                       </td>
-
-                      {/* TOTAL STOCK */}
                       <td>{totalStock}</td>
-
-                      {/* SOLD INPUT */}
                       <td>
                         <input
                           type="number"
                           className="form-control form-control-sm"
-                          value={sold}
-                          onChange={(e) =>
-                            handleSoldChange(product.id, e.target.value)
-                          }
+                          value={p.sold}
+                          onChange={(e) => handleSoldChange(p.id, e.target.value)}
                         />
                       </td>
-
-                      {/* TOTAL SOLD */}
-                      <td>{totalSold}</td>
-
-                      {/* CLOSING STOCK */}
-                      <td>{closingStock}</td>
+                      <td>{closing}</td>
+                      <td className="text-success fw-bold">{formatNumber(totalSold)}</td>
+                      <td className="text-success fw-bold">{formatNumber(Math.floor(totalSold / 2))}</td>
+                      <td className="text-success fw-bold">{formatNumber(Math.ceil(totalSold / 2))}</td>
                     </tr>
                   );
                 })
@@ -213,11 +259,6 @@ function Bar() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* TOTAL EARNED */}
-      <div className="mt-2 text-end fw-bold fs-5">
-        Total Earned (RWF): {totalEarned}
       </div>
     </div>
   );

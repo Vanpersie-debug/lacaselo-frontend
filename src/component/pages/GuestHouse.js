@@ -1,50 +1,166 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-function GuestHouse() {
-  const [dates, setDates] = useState([]);
+function Guesthouse() {
+  const today = new Date().toISOString().split("T")[0];
+
+  const [rooms, setRooms] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [loading, setLoading] = useState(false);
+
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalRoomsSold, setTotalRoomsSold] = useState(0);
+  const [totalSales, setTotalSales] = useState(0);
+
   const API_URL = "https://backend-vitq.onrender.com/api/guesthouse";
 
-  const fetchDates = async () => {
+  // ===== FETCH ROOMS =====
+  const fetchRooms = async (date) => {
     try {
-      const res = await axios.get(API_URL);
-      setDates(res.data);
-    } catch (err) { console.error(err); }
+      setLoading(true);
+      const res = await axios.get(API_URL, { params: { date } });
+      const roomList = res.data.rooms || [];
+      setRooms(roomList);
+
+      recalcTotals(roomList);
+
+    } catch (err) {
+      console.error("Error fetching guesthouse data:", err);
+      setRooms([]);
+      setTotalIncome(0);
+      setTotalRoomsSold(0);
+      setTotalSales(0);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchDates(); }, []);
+  useEffect(() => {
+    fetchRooms(selectedDate);
+  }, [selectedDate]);
 
+  // ===== RECALCULATE TOTALS =====
+  const recalcTotals = (roomList) => {
+    let incomeSum = 0;
+    let soldSum = 0;
+    let salesSum = 0;
+
+    roomList.forEach((r) => {
+      const vip = Number(r.vip || 0);
+      const normal = Number(r.normal || 0);
+      const vipPrice = Number(r.vip_price || 0);
+      const normalPrice = Number(r.normal_price || 0);
+
+      incomeSum += vip * vipPrice + normal * normalPrice;
+      salesSum += vip * vipPrice + normal * normalPrice;
+      soldSum += vip + normal;
+    });
+
+    setTotalIncome(incomeSum);
+    setTotalSales(salesSum);
+    setTotalRoomsSold(soldSum);
+  };
+
+  // ===== CHANGE DATE =====
+  const changeDate = (days) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+    const formatted = newDate.toISOString().split("T")[0];
+    if (formatted > today) return;
+    setSelectedDate(formatted);
+  };
+
+  // ===== ADD NEW ROOM ENTRY =====
   const handleAdd = async () => {
-    const date = prompt("Enter date (YYYY-MM-DD):");
-    const vip = prompt("Number of VIP rooms:");
-    const normal = prompt("Number of Normal rooms:");
-    const price = prompt("Enter price per night (RWF):");
-
-    if (!date || vip === null || normal === null || !price) return alert("All fields required");
+    const date = prompt("Date (YYYY-MM-DD):") || selectedDate;
+    const vip = Number(prompt("VIP Rooms:")) || 0;
+    const normal = Number(prompt("Normal Rooms:")) || 0;
+    const vip_price = Number(prompt("VIP Room Price:")) || 0;
+    const normal_price = Number(prompt("Normal Room Price:")) || 0;
 
     try {
-      await axios.post(API_URL, { date, vip: Number(vip), normal: Number(normal), price: Number(price) });
-      fetchDates();
-    } catch (err) { console.error(err); }
+      await axios.post(API_URL, {
+        date,
+        vip,
+        normal,
+        vip_price,
+        normal_price,
+      });
+      fetchRooms(selectedDate);
+    } catch (err) {
+      console.error("Error adding room:", err);
+    }
   };
 
-  const handleUpdate = async (id) => {
-    const price = prompt("Enter new price per night (RWF):");
-    if (!price) return;
-    try { await axios.put(`${API_URL}/update/${id}`, { price }); fetchDates(); } catch (err) { console.error(err); }
+  // ===== HANDLE EDIT =====
+  const handleRoomChange = (id, field, value) => {
+    const numValue = Number(value);
+    setRooms((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, [field]: numValue } : r))
+    );
+
+    recalcTotals(
+      rooms.map((r) =>
+        r.id === id ? { ...r, [field]: numValue } : r
+      )
+    );
+
+    axios.put(`${API_URL}/${id}`, { [field]: numValue }).catch((err) =>
+      console.error(`Error updating ${field}:`, err)
+    );
   };
 
-  const handleOccupied = async (id) => {
-    try { await axios.put(`${API_URL}/occupy/${id}`); fetchDates(); } catch (err) { console.error(err); }
-  };
+  const formatNumber = (value) => Number(value || 0).toLocaleString();
 
   return (
-    <div className="container mt-4">
-      <div className="card shadow mb-4 d-flex justify-content-between align-items-center p-3">
-        <h2>Guest House</h2>
-        <button className="btn btn-success" onClick={handleAdd}>+ Add Date</button>
+    <div className="container-fluid mt-4">
+
+      {/* ===== SUMMARY CARDS ===== */}
+      <div className="row g-4 mb-4">
+
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
+            <div className="card-body text-center">
+              <h6>Total Income</h6>
+              <h4>RWF {formatNumber(totalIncome)}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card shadow border-0" style={{ backgroundColor: "#D4AF37", color: "#000" }}>
+            <div className="card-body text-center">
+              <h6>Total Sales</h6>
+              <h4>RWF {formatNumber(totalSales)}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0E6251" }}>
+            <div className="card-body text-center">
+              <h6>Total Rooms Sold</h6>
+              <h4>{formatNumber(totalRoomsSold)}</h4>
+            </div>
+          </div>
+        </div>
+
       </div>
 
+      {/* ===== HEADER ===== */}
+      <div className="card shadow mb-4">
+        <div className="card-body d-flex justify-content-between align-items-center">
+          <h4 className="fw-bold mb-0">Guesthouse</h4>
+          <div className="d-flex align-items-center gap-2">
+            <button className="btn btn-outline-dark btn-sm" onClick={() => changeDate(-1)}>◀</button>
+            <strong>{selectedDate}</strong>
+            <button className="btn btn-outline-dark btn-sm" onClick={() => changeDate(1)} disabled={selectedDate === today}>▶</button>
+            <button className="btn btn-success ms-3" onClick={handleAdd}>+ Add Room</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== TABLE ===== */}
       <div className="card shadow">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
@@ -52,33 +168,54 @@ function GuestHouse() {
               <tr>
                 <th>#</th>
                 <th>Date</th>
-                <th>VIP Rooms</th>
-                <th>Normal Rooms</th>
-                <th>Total Rooms</th>
-                <th>Price (RWF)</th>
+                <th>VIP</th>
+                <th>VIP Room Price</th>
+                <th>Normal</th>
+                <th>Normal Room Price</th>
               </tr>
             </thead>
             <tbody>
-              {dates.length === 0 ? (
-                <tr><td colSpan="8">No dates available</td></tr>
+              {loading ? (
+                <tr><td colSpan="6">Loading...</td></tr>
+              ) : rooms.length === 0 ? (
+                <tr><td colSpan="6">No room entries for this date</td></tr>
               ) : (
-                dates.map((d, i) => (
-                  <tr key={d.id}>
+                rooms.map((r, i) => (
+                  <tr key={r.id}>
                     <td>{i + 1}</td>
-                    <td>{d.date}</td>
-                    <td>{d.vip}</td>
-                    <td>{d.normal}</td>
-                    <td>{d.vip + d.normal}</td>
-                    <td>{d.price}</td>
-                    {/* <td>
-                      <span className={`badge ${d.status === "Available" ? "bg-success" : "bg-danger"}`}>
-                        {d.status}
-                      </span>
-                    </td> */}
-                    {/* <td>
-                      <button className="btn btn-sm btn-primary me-2" onClick={() => handleUpdate(d.id)}>Update</button>
-                      {d.status === "Available" && <button className="btn btn-sm btn-warning" onClick={() => handleOccupied(d.id)}>Occupy</button>}
-                    </td> */}
+                    <td>{r.date}</td>
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={r.vip}
+                        onChange={(e) => handleRoomChange(r.id, "vip", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={r.vip_price || 0}
+                        onChange={(e) => handleRoomChange(r.id, "vip_price", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={r.normal}
+                        onChange={(e) => handleRoomChange(r.id, "normal", e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={r.normal_price || 0}
+                        onChange={(e) => handleRoomChange(r.id, "normal_price", e.target.value)}
+                      />
+                    </td>
                   </tr>
                 ))
               )}
@@ -86,8 +223,9 @@ function GuestHouse() {
           </table>
         </div>
       </div>
+
     </div>
   );
 }
 
-export default GuestHouse;
+export default Guesthouse;

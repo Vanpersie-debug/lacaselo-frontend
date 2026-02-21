@@ -1,79 +1,83 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import logo from "../assets/logo.png"; // <-- put your logo image here
 
 function Navbar() {
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-dark shadow">
+    <nav
+      className="navbar navbar-expand-lg shadow"
+      style={{
+        background: "linear-gradient(90deg, #0B2E26, #145C43)",
+        padding: "10px 20px",
+      }}
+    >
       <div className="container-fluid">
 
-        {/* Brand */}
-        <Link className="navbar-brand fw-bold" to="/">
-          <i className="bi bi-speedometer2 me-2"></i>
-          La CielO
+        {/* Brand Logo */}
+        <Link className="navbar-brand d-flex align-items-center" to="/">
+          <img
+            src={logo}
+            alt="La Cielo Garden"
+            style={{ height: "60px", marginRight: "10px" }}
+          />
+          <span
+            style={{
+              color: "#C8A96A",
+              fontWeight: "bold",
+              fontSize: "18px",
+              letterSpacing: "1px",
+            }}
+          >
+            
+          </span>
         </Link>
 
-        {/* Toggle button (mobile) */}
+        {/* Mobile Toggle */}
         <button
           className="navbar-toggler"
           type="button"
           data-bs-toggle="collapse"
           data-bs-target="#mainNavbar"
+          style={{ borderColor: "#C8A96A" }}
         >
           <span className="navbar-toggler-icon"></span>
         </button>
 
-        {/* Navbar links */}
+        {/* Links */}
         <div className="collapse navbar-collapse" id="mainNavbar">
-          <ul className="navbar-nav ms-auto mb-2 mb-lg-0">
+          <ul className="navbar-nav ms-auto">
 
-            <li className="nav-item">
-              <Link className="nav-link" to="/">
-                <i className="bi bi-house-door me-1"></i> Home
-              </Link>
-            </li>
+            {[
+              { name: "Home", path: "/" },
+              { name: "Bar", path: "/Bar" },
+              { name: "Kitchen", path: "/Kitchen" },
+              { name: "Guest House", path: "/GuestHouse" },
+              { name: "Gym", path: "/GYM" },
+              { name: "Billiard", path: "/Billiard" },
+              { name: "Expenses", path: "/Expenses" },
+              { name: "Staff", path: "/Credits" },
+            ].map((item, index) => (
+              <li className="nav-item mx-2" key={index}>
+                <Link
+                  className="nav-link"
+                  to={item.path}
+                  style={{
+                    color: "white",
+                    fontWeight: "500",
+                    transition: "0.3s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.target.style.color = "#C8A96A")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.target.style.color = "white")
+                  }
+                >
+                  {item.name}
+                </Link>
+              </li>
+            ))}
 
-            <li className="nav-item">
-              <Link className="nav-link" to="/Bar">
-                <i className="bi bi-cup-straw me-1"></i> Bar
-              </Link>
-            </li>
-
-            <li className="nav-item">
-              <Link className="nav-link" to="/Kitchen">
-                <i className="bi bi-egg-fried me-1"></i> Kitchen
-              </Link>
-            </li>
-
-            <li className="nav-item">
-              <Link className="nav-link" to="/GuestHouse">
-                <i className="bi bi-building me-1"></i> Guest House
-              </Link>
-            </li>
-
-            <li className="nav-item">
-              <Link className="nav-link" to="/GYM">
-                <i className="bi bi-activity me-1"></i> Gym
-              </Link>
-            </li>
-
-            <li className="nav-item">
-              <Link className="nav-link" to="/Billiard">
-                <i className="bi bi-circle me-1"></i> Billiard
-              </Link>
-            </li>
-
-            <li className="nav-item">
-              <Link className="nav-link" to="/Expenses">
-                <i className="bi bi-cash-stack me-1"></i> Expenses
-              </Link>
-            </li>
-
-            <li className="nav-item">
-              <Link className="nav-link" to="/Employee">
-                <i className="bi bi-cash-stack me-1"></i> Staff
-              </Link>
-            </li>
-      
           </ul>
         </div>
       </div>
