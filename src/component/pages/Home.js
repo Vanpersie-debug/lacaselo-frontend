@@ -79,7 +79,7 @@ function Home() {
         <div
           className="card shadow-lg text-white p-5"
           style={{
-            background: "linear-gradient(90deg, #6a8324, #0e3410)",
+            background: "linear-gradient(90deg, #0b4616, #0e3410)",
           }}
         >
           <h3 className="text-center fw-bold">Total Profit (Expenses Excluded)</h3>
