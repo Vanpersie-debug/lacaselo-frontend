@@ -14,6 +14,7 @@ function Bar() {
 
   const API_URL = "https://backend-vitq.onrender.com/api/drinks";
 
+  // ================= FETCH PRODUCTS =================
   const fetchProducts = async (date) => {
     try {
       setLoading(true);
@@ -24,17 +25,16 @@ function Bar() {
       setProducts(prods);
       setTotalEarned(res.data.totalEarned || 0);
 
-      // calculate totals
       const profitSum = prods.reduce(
-        (sum, p) => sum + (Number(p.profit) || 0),
+        (sum, p) => sum + Number(p.profit || 0),
         0
       );
 
       const stockValue = prods.reduce(
         (sum, p) =>
           sum +
-          (Number(p.closing_stock) || 0) *
-            (Number(p.initial_price) || 0),
+          Number(p.closing_stock || 0) *
+            Number(p.initial_price || 0),
         0
       );
 
@@ -56,19 +56,23 @@ function Bar() {
     fetchProducts(selectedDate);
   }, [selectedDate]);
 
+  // ================= CHANGE DATE =================
   const changeDate = (days) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
     const formatted = newDate.toISOString().split("T")[0];
+
     if (formatted > today) return;
+
     setSelectedDate(formatted);
   };
 
+  // ================= ADD PRODUCT =================
   const handleAdd = async () => {
     const name = prompt("Product name:");
     if (!name) return alert("Name is required");
 
-    const initial_price = Number(prompt("Cost (Initial price):")) || 0;
+    const initial_price = Number(prompt("Cost price:")) || 0;
     const price = Number(prompt("Selling price:")) || 0;
     const opening_stock = Number(prompt("Opening stock:")) || 0;
 
@@ -80,52 +84,56 @@ function Bar() {
         opening_stock,
         date: selectedDate,
       });
+
       fetchProducts(selectedDate);
     } catch (err) {
       console.error("Error adding product:", err);
     }
   };
 
+  // ================= UPDATE ENTREE =================
   const handleEntreeChange = async (id, value) => {
     const entreeValue = Number(value);
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, entree: entreeValue } : p))
-    );
+    const product = products.find((p) => p.id === id);
+
     try {
       await axios.put(`${API_URL}/${id}`, {
         entree: entreeValue,
+        sold: product.sold || 0,
         date: selectedDate,
       });
+
       fetchProducts(selectedDate);
     } catch (err) {
       console.error("Error updating entree:", err);
     }
   };
 
+  // ================= UPDATE SOLD =================
   const handleSoldChange = async (id, value) => {
     const soldValue = Number(value);
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, sold: soldValue } : p))
-    );
+    const product = products.find((p) => p.id === id);
+
     try {
       await axios.put(`${API_URL}/${id}`, {
+        entree: product.entree || 0,
         sold: soldValue,
         date: selectedDate,
       });
+
       fetchProducts(selectedDate);
     } catch (err) {
       console.error("Error updating sold:", err);
     }
   };
 
-  const formatNumber = (value) => Number(value || 0).toLocaleString();
+  const formatNumber = (value) =>
+    Number(value || 0).toLocaleString();
 
   return (
     <div className="container-fluid mt-4">
-
-      {/* ===== SUMMARY CARDS ===== */}
       <div className="row g-4 mb-4">
-        {/* Total Sales */}
+
         <div className="col-md-3">
           <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
             <div className="card-body">
@@ -135,7 +143,6 @@ function Bar() {
           </div>
         </div>
 
-        {/* Total Profit */}
         <div className="col-md-3">
           <div className="card shadow border-0" style={{ backgroundColor: "#D4AF37", color: "#000" }}>
             <div className="card-body">
@@ -145,7 +152,6 @@ function Bar() {
           </div>
         </div>
 
-        {/* Total Stock Value */}
         <div className="col-md-3">
           <div className="card text-white shadow border-0" style={{ backgroundColor: "#0E6251" }}>
             <div className="card-body">
@@ -155,18 +161,17 @@ function Bar() {
           </div>
         </div>
 
-        {/* Low Stock Items */}
         <div className="col-md-3">
           <div className="card text-white shadow border-0" style={{ backgroundColor: "#C0392B" }}>
             <div className="card-body">
-              <h6>Low Stock Items</h6>
+              <h6>Low Stock</h6>
               <h4>{lowStockCount}</h4>
             </div>
           </div>
         </div>
+
       </div>
 
-      {/* ===== HEADER ===== */}
       <div className="card shadow border-0 mb-4">
         <div className="card-body d-flex justify-content-between align-items-center">
           <h4 className="fw-bold mb-0">Bar</h4>
@@ -180,12 +185,13 @@ function Bar() {
               disabled={selectedDate === today}
             >▶</button>
 
-            <button className="btn btn-success ms-3" onClick={handleAdd}>+ Add Product</button>
+            <button className="btn btn-success ms-3" onClick={handleAdd}>
+              + Add Product
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ===== TABLE ===== */}
       <div className="card shadow border-0">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
@@ -201,33 +207,23 @@ function Bar() {
                 <th>Sold</th>
                 <th>Closing</th>
                 <th>Sales</th>
-                <th>Momo</th>
-                <th>Cash</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan="12">Loading...</td>
-                </tr>
+                <tr><td colSpan="10">Loading...</td></tr>
               ) : products.length === 0 ? (
-                <tr>
-                  <td colSpan="12">No report entered yet for this date</td>
-                </tr>
+                <tr><td colSpan="10">No report for this date</td></tr>
               ) : (
                 products.map((p, i) => {
-                  const totalStock = (Number(p.opening_stock) || 0) + (Number(p.entree) || 0);
-                  const totalSold = (Number(p.sold) || 0) * (Number(p.price) || 0);
-                  const profit = (Number(p.sold) || 0) * ((Number(p.price) || 0) - (Number(p.initial_price) || 0));
-                  const closing = totalStock - (Number(p.sold) || 0);
-                  const isLow = closing < 5;
+                  const totalStock = p.total_stock;
+                  const closing = p.closing_stock;
+                  const totalSold = p.total_sold;
 
                   return (
                     <tr key={p.id}>
                       <td>{i + 1}</td>
-                      <td>
-                        {p.name} {isLow && <span className="badge bg-danger ms-2">Low</span>}
-                      </td>
+                      <td>{p.name}</td>
                       <td>{formatNumber(p.initial_price)}</td>
                       <td>{formatNumber(p.price)}</td>
                       <td>{p.opening_stock}</td>
@@ -236,7 +232,9 @@ function Bar() {
                           type="number"
                           className="form-control form-control-sm"
                           value={p.entree}
-                          onChange={(e) => handleEntreeChange(p.id, e.target.value)}
+                          onChange={(e) =>
+                            handleEntreeChange(p.id, e.target.value)
+                          }
                         />
                       </td>
                       <td>{totalStock}</td>
@@ -245,13 +243,15 @@ function Bar() {
                           type="number"
                           className="form-control form-control-sm"
                           value={p.sold}
-                          onChange={(e) => handleSoldChange(p.id, e.target.value)}
+                          onChange={(e) =>
+                            handleSoldChange(p.id, e.target.value)
+                          }
                         />
                       </td>
                       <td>{closing}</td>
-                      <td className="text-success fw-bold">{formatNumber(totalSold)}</td>
-                      <td className="text-success fw-bold">{formatNumber(Math.floor(totalSold / 2))}</td>
-                      <td className="text-success fw-bold">{formatNumber(Math.ceil(totalSold / 2))}</td>
+                      <td className="text-success fw-bold">
+                        {formatNumber(totalSold)}
+                      </td>
                     </tr>
                   );
                 })
