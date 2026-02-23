@@ -13,7 +13,7 @@ function Kitchen() {
   const [totalStockValue, setTotalStockValue] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
 
-  const API_URL = "https://backend-vitq.onrender.com/api/kitchen_product";
+  const API_URL = "https://backend-vitq.onrender.com/api/kitchen";
 
   const fetchFoods = async (date) => {
     try {

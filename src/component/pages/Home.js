@@ -59,7 +59,7 @@ function Home() {
               style={{
                 cursor: "pointer",
                 transition: "transform 0.2s",
-                background: "linear-gradient(135deg, #56949b 0%, #082e0a 100%)",
+                background: "linear-gradient(135deg, #56949b 0%, #56949b 100%)",
                 color: "white",
               }}
               onClick={() => navigate(page.route)}
