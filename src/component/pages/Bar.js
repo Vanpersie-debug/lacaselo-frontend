@@ -127,13 +127,43 @@ function Bar() {
     }
   };
 
+  // ================= EDIT PRICES =================
+  const handleEditPrice = async (product) => {
+    const newCost = Number(
+      prompt("Enter new cost price:", product.initial_price)
+    );
+
+    if (isNaN(newCost)) return alert("Invalid cost price");
+
+    const newSelling = Number(
+      prompt("Enter new selling price:", product.price)
+    );
+
+    if (isNaN(newSelling)) return alert("Invalid selling price");
+
+    try {
+      await axios.put(`${API_URL}/${product.id}`, {
+        initial_price: newCost,
+        price: newSelling,
+        entree: product.entree || 0,
+        sold: product.sold || 0,
+        date: selectedDate,
+      });
+
+      fetchProducts(selectedDate);
+    } catch (err) {
+      console.error("Error updating prices:", err);
+    }
+  };
+
   const formatNumber = (value) =>
     Number(value || 0).toLocaleString();
 
   return (
     <div className="container-fluid mt-4">
-      <div className="row g-4 mb-4">
 
+      {/* SUMMARY CARDS */}
+      <div className="row g-4 mb-4">
         <div className="col-md-3">
           <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
             <div className="card-body">
@@ -169,9 +199,9 @@ function Bar() {
             </div>
           </div>
         </div>
-
       </div>
 
+      {/* HEADER */}
       <div className="card shadow border-0 mb-4">
         <div className="card-body d-flex justify-content-between align-items-center">
           <h4 className="fw-bold mb-0">Bar</h4>
@@ -192,6 +222,7 @@ function Bar() {
         </div>
       </div>
 
+      {/* TABLE */}
       <div className="card shadow border-0">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
@@ -207,59 +238,70 @@ function Bar() {
                 <th>Sold</th>
                 <th>Closing</th>
                 <th>Sales</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="10">Loading...</td></tr>
+                <tr><td colSpan="11">Loading...</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan="10">No report for this date</td></tr>
+                <tr><td colSpan="11">No report for this date</td></tr>
               ) : (
-                products.map((p, i) => {
-                  const totalStock = p.total_stock;
-                  const closing = p.closing_stock;
-                  const totalSold = p.total_sold;
+                products.map((p, i) => (
+                  <tr key={p.id}>
+                    <td>{i + 1}</td>
+                    <td>{p.name}</td>
+                    <td>{formatNumber(p.initial_price)}</td>
+                    <td>{formatNumber(p.price)}</td>
+                    <td>{p.opening_stock}</td>
 
-                  return (
-                    <tr key={p.id}>
-                      <td>{i + 1}</td>
-                      <td>{p.name}</td>
-                      <td>{formatNumber(p.initial_price)}</td>
-                      <td>{formatNumber(p.price)}</td>
-                      <td>{p.opening_stock}</td>
-                      <td>
-                        <input
-                          type="number"
-                          className="form-control form-control-sm"
-                          value={p.entree}
-                          onChange={(e) =>
-                            handleEntreeChange(p.id, e.target.value)
-                          }
-                        />
-                      </td>
-                      <td>{totalStock}</td>
-                      <td>
-                        <input
-                          type="number"
-                          className="form-control form-control-sm"
-                          value={p.sold}
-                          onChange={(e) =>
-                            handleSoldChange(p.id, e.target.value)
-                          }
-                        />
-                      </td>
-                      <td>{closing}</td>
-                      <td className="text-success fw-bold">
-                        {formatNumber(totalSold)}
-                      </td>
-                    </tr>
-                  );
-                })
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={p.entree}
+                        onChange={(e) =>
+                          handleEntreeChange(p.id, e.target.value)
+                        }
+                      />
+                    </td>
+
+                    <td>{p.total_stock}</td>
+
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={p.sold}
+                        onChange={(e) =>
+                          handleSoldChange(p.id, e.target.value)
+                        }
+                      />
+                    </td>
+
+                    <td>{p.closing_stock}</td>
+
+                    <td className="text-success fw-bold">
+                      {formatNumber(p.total_sold)}
+                    </td>
+
+                    <td>
+                      <button
+                        className="btn btn-sm btn-warning"
+                        onClick={() => handleEditPrice(p)}
+                      >
+                        Edit
+                      </button>
+                    </td>
+
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
+
     </div>
   );
 }
