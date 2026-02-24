@@ -7,6 +7,9 @@ function Bar() {
   const [products, setProducts] = useState([]);
   const [selectedDate, setSelectedDate] = useState(today);
   const [totalEarned, setTotalEarned] = useState(0);
+  const [totalProfit, setTotalProfit] = useState(0);
+  const [totalStockValue, setTotalStockValue] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const API_URL = "https://backend-vitq.onrender.com/api/drinks";
@@ -17,10 +20,33 @@ function Bar() {
       setLoading(true);
       const res = await axios.get(API_URL, { params: { date } });
 
-      setProducts(res.data.products || []);
+      const prods = res.data.products || [];
+
+      setProducts(prods);
       setTotalEarned(res.data.totalEarned || 0);
+
+      const profitSum = prods.reduce(
+        (sum, p) => sum + Number(p.profit || 0),
+        0
+      );
+
+      const stockValue = prods.reduce(
+        (sum, p) =>
+          sum +
+          Number(p.closing_stock || 0) *
+            Number(p.initial_price || 0),
+        0
+      );
+
+      const lowStock = prods.filter(
+        (p) => Number(p.closing_stock) < 5
+      ).length;
+
+      setTotalProfit(profitSum);
+      setTotalStockValue(stockValue);
+      setLowStockCount(lowStock);
     } catch (err) {
-      console.error("Error fetching:", err);
+      console.error("Error fetching products:", err);
     } finally {
       setLoading(false);
     }
@@ -31,168 +57,174 @@ function Bar() {
   }, [selectedDate]);
 
   // ================= UPDATE STOCK =================
-  const updateStock = async (id, entree, sold) => {
-    try {
-      await axios.put(`${API_URL}/stock/${id}`, {
-        entree,
-        sold,
-        date: selectedDate,
-      });
+  const handleEntreeChange = async (id, value) => {
+    const product = products.find((p) => p.id === id);
 
-      fetchProducts(selectedDate);
-    } catch (err) {
-      console.error("Error updating stock:", err);
-    }
+    await axios.put(`${API_URL}/stock/${id}`, {
+      entree: value,
+      sold: product.sold,
+      date: selectedDate,
+    });
+
+    fetchProducts(selectedDate);
   };
 
-  // ================= UPDATE PRICE =================
-  const updatePrice = async (product) => {
-    const newCost = Number(
-      prompt("Enter new cost price:", product.initial_price)
-    );
-    if (isNaN(newCost)) return alert("Invalid cost price");
+  const handleSoldChange = async (id, value) => {
+    const product = products.find((p) => p.id === id);
 
-    const newSelling = Number(
-      prompt("Enter new selling price:", product.price)
-    );
-    if (isNaN(newSelling)) return alert("Invalid selling price");
+    await axios.put(`${API_URL}/stock/${id}`, {
+      entree: product.entree,
+      sold: value,
+      date: selectedDate,
+    });
 
-    try {
-      await axios.put(`${API_URL}/price/${product.id}`, {
-        initial_price: newCost,
-        price: newSelling,
-        date: selectedDate,
-      });
-
-      fetchProducts(selectedDate);
-    } catch (err) {
-      console.error("Error updating price:", err);
-    }
+    fetchProducts(selectedDate);
   };
+
+  const formatNumber = (value) =>
+    Number(value || 0).toLocaleString();
 
   return (
-    <div className="container mt-4">
+    <div className="container-fluid mt-4">
+      <div className="row g-4 mb-4">
 
-      {/* HEADER */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h3>Bar Report - {selectedDate}</h3>
-        <h5>Total Sales: RWF {totalEarned.toLocaleString()}</h5>
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
+            <div className="card-body">
+              <h6>Total Sales</h6>
+              <h4>RWF {formatNumber(totalEarned)}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card shadow border-0" style={{ backgroundColor: "#D4AF37", color: "#000" }}>
+            <div className="card-body">
+              <h6>Total Profit</h6>
+              <h4>RWF {formatNumber(totalProfit)}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0E6251" }}>
+            <div className="card-body">
+              <h6>Total Stock Value</h6>
+              <h4>RWF {formatNumber(totalStockValue)}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#C0392B" }}>
+            <div className="card-body">
+              <h6>Low Stock</h6>
+              <h4>{lowStockCount}</h4>
+            </div>
+          </div>
+        </div>
+
       </div>
 
-      {/* TABLE */}
-      <div className="table-responsive">
-        <table className="table table-bordered text-center">
-          <thead className="table-dark">
-            <tr>
-              <th>#</th>
-              <th>Product</th>
-              <th>Cost</th>
-              <th>Selling</th>
-              <th>Opening</th>
-              <th>Entree</th>
-              <th>Sold</th>
-              <th>Closing</th>
-              <th>Sales</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {loading ? (
+      <div className="card shadow border-0">
+        <div className="table-responsive">
+          <table className="table table-bordered table-hover text-center mb-0">
+            <thead className="table-dark">
               <tr>
-                <td colSpan="10">Loading...</td>
+                <th>#</th>
+                <th>Product</th>
+                <th>Cost</th>
+                <th>Selling</th>
+                <th>Opening</th>
+                <th>Stock In</th>
+                <th>Total</th>
+                <th>Sold</th>
+                <th>Closing</th>
+                <th>Sales</th>
               </tr>
-            ) : products.length === 0 ? (
-              <tr>
-                <td colSpan="10">No products for this date</td>
-              </tr>
-            ) : (
-              products.map((p, i) => {
-                const isLow = Number(p.closing_stock) < 5;
-                const isOut = Number(p.closing_stock) === 0;
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="10">Loading...</td></tr>
+              ) : products.length === 0 ? (
+                <tr><td colSpan="10">No report for this date</td></tr>
+              ) : (
+                products.map((p, i) => {
+                  const isLow = Number(p.closing_stock) < 5;
+                  const isOut = Number(p.closing_stock) === 0;
 
-                return (
-                  <tr
-                    key={p.id}
-                    className={isLow ? "table-danger" : ""}
-                  >
-                    <td>{i + 1}</td>
-                    <td>{p.name}</td>
-                    <td>{p.initial_price}</td>
-                    <td>{p.price}</td>
-                    <td>{p.opening_stock}</td>
+                  return (
+                    <tr key={p.id}>
+                      <td>{i + 1}</td>
+                      <td>{p.name}</td>
+                      <td>{formatNumber(p.initial_price)}</td>
+                      <td>{formatNumber(p.price)}</td>
+                      <td>{p.opening_stock}</td>
 
-                    {/* ENTREE */}
-                    <td>
-                      <input
-                        type="number"
-                        className="form-control form-control-sm"
-                        defaultValue={p.entree}
-                        onBlur={(e) =>
-                          updateStock(
-                            p.id,
-                            e.target.value,
-                            p.sold
-                          )
-                        }
-                      />
-                    </td>
+                      <td>
+                        <input
+                          type="number"
+                          className="form-control form-control-sm"
+                          value={p.entree}
+                          onChange={(e) =>
+                            handleEntreeChange(p.id, e.target.value)
+                          }
+                        />
+                      </td>
 
-                    {/* SOLD */}
-                    <td>
-                      <input
-                        type="number"
-                        className="form-control form-control-sm"
-                        defaultValue={p.sold}
-                        disabled={isOut}
-                        onBlur={(e) =>
-                          updateStock(
-                            p.id,
-                            p.entree,
-                            e.target.value
-                          )
-                        }
-                      />
-                    </td>
+                      <td>{p.total_stock}</td>
 
-                    {/* CLOSING STOCK */}
-                    <td>
-                      {p.closing_stock}
+                      <td>
+                        <input
+                          type="number"
+                          className="form-control form-control-sm"
+                          value={p.sold}
+                          onChange={(e) =>
+                            handleSoldChange(p.id, e.target.value)
+                          }
+                        />
+                      </td>
 
-                      {isOut && (
-                        <span className="badge bg-dark ms-2">
-                          OUT
-                        </span>
-                      )}
+                      <td>
+                        {p.closing_stock}
 
-                      {isLow && !isOut && (
-                        <span className="badge bg-danger ms-2">
-                          LOW
-                        </span>
-                      )}
-                    </td>
+                        {isOut && (
+                          <span
+                            className="ms-2 px-2"
+                            style={{
+                              backgroundColor: "black",
+                              color: "white",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            OUT
+                          </span>
+                        )}
 
-                    {/* SALES */}
-                    <td className="fw-bold text-success">
-                      {p.total_sold}
-                    </td>
+                        {isLow && !isOut && (
+                          <span
+                            className="ms-2 px-2"
+                            style={{
+                              backgroundColor: "red",
+                              color: "white",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            LOW
+                          </span>
+                        )}
+                      </td>
 
-                    {/* EDIT PRICE */}
-                    <td>
-                      <button
-                        className="btn btn-warning btn-sm"
-                        onClick={() => updatePrice(p)}
-                      >
-                        Edit
-                      </button>
-                    </td>
-
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                      <td className="text-success fw-bold">
+                        {formatNumber(p.total_sold)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
