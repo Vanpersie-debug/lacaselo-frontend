@@ -91,15 +91,21 @@ function Bar() {
     }
   };
 
-  // ================= UPDATE ENTREE =================
-  const handleEntreeChange = async (id, value) => {
-    const entreeValue = Number(value);
-    const product = products.find((p) => p.id === id);
+  // ================= LOCAL INPUT CHANGE =================
+  const handleLocalChange = (id, field, value) => {
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, [field]: value } : p
+      )
+    );
+  };
 
+  // ================= SAVE ENTREE =================
+  const saveEntree = async (product) => {
     try {
-      await axios.put(`${API_URL}/${id}`, {
-        entree: entreeValue,
-        sold: product.sold || 0,
+      await axios.put(`${API_URL}/${product.id}`, {
+        entree: Number(product.entree) || 0,
+        sold: Number(product.sold) || 0,
         date: selectedDate,
       });
 
@@ -109,15 +115,12 @@ function Bar() {
     }
   };
 
-  // ================= UPDATE SOLD =================
-  const handleSoldChange = async (id, value) => {
-    const soldValue = Number(value);
-    const product = products.find((p) => p.id === id);
-
+  // ================= SAVE SOLD =================
+  const saveSold = async (product) => {
     try {
-      await axios.put(`${API_URL}/${id}`, {
-        entree: product.entree || 0,
-        sold: soldValue,
+      await axios.put(`${API_URL}/${product.id}`, {
+        entree: Number(product.entree) || 0,
+        sold: Number(product.sold) || 0,
         date: selectedDate,
       });
 
@@ -127,43 +130,13 @@ function Bar() {
     }
   };
 
-  // ================= EDIT PRICES =================
-  const handleEditPrice = async (product) => {
-    const newCost = Number(
-      prompt("Enter new cost price:", product.initial_price)
-    );
-
-    if (isNaN(newCost)) return alert("Invalid cost price");
-
-    const newSelling = Number(
-      prompt("Enter new selling price:", product.price)
-    );
-
-    if (isNaN(newSelling)) return alert("Invalid selling price");
-
-    try {
-      await axios.put(`${API_URL}/${product.id}`, {
-        initial_price: newCost,
-        price: newSelling,
-        entree: product.entree || 0,
-        sold: product.sold || 0,
-        date: selectedDate,
-      });
-
-      fetchProducts(selectedDate);
-    } catch (err) {
-      console.error("Error updating prices:", err);
-    }
-  };
-
   const formatNumber = (value) =>
     Number(value || 0).toLocaleString();
 
   return (
     <div className="container-fluid mt-4">
-
-      {/* SUMMARY CARDS */}
       <div className="row g-4 mb-4">
+
         <div className="col-md-3">
           <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
             <div className="card-body">
@@ -199,9 +172,9 @@ function Bar() {
             </div>
           </div>
         </div>
+
       </div>
 
-      {/* HEADER */}
       <div className="card shadow border-0 mb-4">
         <div className="card-body d-flex justify-content-between align-items-center">
           <h4 className="fw-bold mb-0">Bar</h4>
@@ -222,7 +195,6 @@ function Bar() {
         </div>
       </div>
 
-      {/* TABLE */}
       <div className="card shadow border-0">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
@@ -238,14 +210,13 @@ function Bar() {
                 <th>Sold</th>
                 <th>Closing</th>
                 <th>Sales</th>
-                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="11">Loading...</td></tr>
+                <tr><td colSpan="10">Loading...</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan="11">No report for this date</td></tr>
+                <tr><td colSpan="10">No report for this date</td></tr>
               ) : (
                 products.map((p, i) => (
                   <tr key={p.id}>
@@ -259,10 +230,11 @@ function Bar() {
                       <input
                         type="number"
                         className="form-control form-control-sm"
-                        value={p.entree}
+                        value={p.entree || ""}
                         onChange={(e) =>
-                          handleEntreeChange(p.id, e.target.value)
+                          handleLocalChange(p.id, "entree", e.target.value)
                         }
+                        onBlur={() => saveEntree(p)}
                       />
                     </td>
 
@@ -272,10 +244,11 @@ function Bar() {
                       <input
                         type="number"
                         className="form-control form-control-sm"
-                        value={p.sold}
+                        value={p.sold || ""}
                         onChange={(e) =>
-                          handleSoldChange(p.id, e.target.value)
+                          handleLocalChange(p.id, "sold", e.target.value)
                         }
+                        onBlur={() => saveSold(p)}
                       />
                     </td>
 
@@ -284,16 +257,6 @@ function Bar() {
                     <td className="text-success fw-bold">
                       {formatNumber(p.total_sold)}
                     </td>
-
-                    <td>
-                      <button
-                        className="btn btn-sm btn-warning"
-                        onClick={() => handleEditPrice(p)}
-                      >
-                        Edit
-                      </button>
-                    </td>
-
                   </tr>
                 ))
               )}
@@ -301,7 +264,6 @@ function Bar() {
           </table>
         </div>
       </div>
-
     </div>
   );
 }
