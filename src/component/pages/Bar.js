@@ -56,29 +56,104 @@ function Bar() {
     fetchProducts(selectedDate);
   }, [selectedDate]);
 
-  // ================= UPDATE STOCK =================
-  const handleEntreeChange = async (id, value) => {
-    const product = products.find((p) => p.id === id);
+  // ================= CHANGE DATE =================
+  const changeDate = (days) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+    const formatted = newDate.toISOString().split("T")[0];
 
-    await axios.put(`${API_URL}/stock/${id}`, {
-      entree: value,
-      sold: product.sold,
-      date: selectedDate,
-    });
+    if (formatted > today) return;
 
-    fetchProducts(selectedDate);
+    setSelectedDate(formatted);
   };
 
-  const handleSoldChange = async (id, value) => {
+  // ================= ADD PRODUCT =================
+  const handleAdd = async () => {
+    const name = prompt("Product name:");
+    if (!name) return alert("Name is required");
+
+    const initial_price = Number(prompt("Cost price:")) || 0;
+    const price = Number(prompt("Selling price:")) || 0;
+    const opening_stock = Number(prompt("Opening stock:")) || 0;
+
+    try {
+      await axios.post(API_URL, {
+        name,
+        initial_price,
+        price,
+        opening_stock,
+        date: selectedDate,
+      });
+
+      fetchProducts(selectedDate);
+    } catch (err) {
+      console.error("Error adding product:", err);
+    }
+  };
+
+  // ================= UPDATE ENTREE =================
+  const handleEntreeChange = async (id, value) => {
+    const entreeValue = Number(value);
     const product = products.find((p) => p.id === id);
 
-    await axios.put(`${API_URL}/stock/${id}`, {
-      entree: product.entree,
-      sold: value,
-      date: selectedDate,
-    });
+    try {
+      await axios.put(`${API_URL}/${id}`, {
+        entree: entreeValue,
+        sold: product.sold || 0,
+        date: selectedDate,
+      });
 
-    fetchProducts(selectedDate);
+      fetchProducts(selectedDate);
+    } catch (err) {
+      console.error("Error updating entree:", err);
+    }
+  };
+
+  // ================= UPDATE SOLD =================
+  const handleSoldChange = async (id, value) => {
+    const soldValue = Number(value);
+    const product = products.find((p) => p.id === id);
+
+    try {
+      await axios.put(`${API_URL}/${id}`, {
+        entree: product.entree || 0,
+        sold: soldValue,
+        date: selectedDate,
+      });
+
+      fetchProducts(selectedDate);
+    } catch (err) {
+      console.error("Error updating sold:", err);
+    }
+  };
+
+  // ================= EDIT PRICES =================
+  const handleEditPrice = async (product) => {
+    const newCost = Number(
+      prompt("Enter new cost price:", product.initial_price)
+    );
+
+    if (isNaN(newCost)) return alert("Invalid cost price");
+
+    const newSelling = Number(
+      prompt("Enter new selling price:", product.price)
+    );
+
+    if (isNaN(newSelling)) return alert("Invalid selling price");
+
+    try {
+      await axios.put(`${API_URL}/${product.id}`, {
+        initial_price: newCost,
+        price: newSelling,
+        entree: product.entree || 0,
+        sold: product.sold || 0,
+        date: selectedDate,
+      });
+
+      fetchProducts(selectedDate);
+    } catch (err) {
+      console.error("Error updating prices:", err);
+    }
   };
 
   const formatNumber = (value) =>
@@ -86,8 +161,9 @@ function Bar() {
 
   return (
     <div className="container-fluid mt-4">
-      <div className="row g-4 mb-4">
 
+      {/* SUMMARY CARDS */}
+      <div className="row g-4 mb-4">
         <div className="col-md-3">
           <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
             <div className="card-body">
@@ -123,9 +199,30 @@ function Bar() {
             </div>
           </div>
         </div>
-
       </div>
 
+      {/* HEADER */}
+      <div className="card shadow border-0 mb-4">
+        <div className="card-body d-flex justify-content-between align-items-center">
+          <h4 className="fw-bold mb-0">Bar</h4>
+
+          <div className="d-flex align-items-center gap-2">
+            <button className="btn btn-outline-dark btn-sm" onClick={() => changeDate(-1)}>◀</button>
+            <strong>{selectedDate}</strong>
+            <button
+              className="btn btn-outline-dark btn-sm"
+              onClick={() => changeDate(1)}
+              disabled={selectedDate === today}
+            >▶</button>
+
+            <button className="btn btn-success ms-3" onClick={handleAdd}>
+              + Add Product
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* TABLE */}
       <div className="card shadow border-0">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
@@ -141,91 +238,70 @@ function Bar() {
                 <th>Sold</th>
                 <th>Closing</th>
                 <th>Sales</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="10">Loading...</td></tr>
+                <tr><td colSpan="11">Loading...</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan="10">No report for this date</td></tr>
+                <tr><td colSpan="11">No report for this date</td></tr>
               ) : (
-                products.map((p, i) => {
-                  const isLow = Number(p.closing_stock) < 5;
-                  const isOut = Number(p.closing_stock) === 0;
+                products.map((p, i) => (
+                  <tr key={p.id}>
+                    <td>{i + 1}</td>
+                    <td>{p.name}</td>
+                    <td>{formatNumber(p.initial_price)}</td>
+                    <td>{formatNumber(p.price)}</td>
+                    <td>{p.opening_stock}</td>
 
-                  return (
-                    <tr key={p.id}>
-                      <td>{i + 1}</td>
-                      <td>{p.name}</td>
-                      <td>{formatNumber(p.initial_price)}</td>
-                      <td>{formatNumber(p.price)}</td>
-                      <td>{p.opening_stock}</td>
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={p.entree}
+                        onChange={(e) =>
+                          handleEntreeChange(p.id, e.target.value)
+                        }
+                      />
+                    </td>
 
-                      <td>
-                        <input
-                          type="number"
-                          className="form-control form-control-sm"
-                          value={p.entree}
-                          onChange={(e) =>
-                            handleEntreeChange(p.id, e.target.value)
-                          }
-                        />
-                      </td>
+                    <td>{p.total_stock}</td>
 
-                      <td>{p.total_stock}</td>
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={p.sold}
+                        onChange={(e) =>
+                          handleSoldChange(p.id, e.target.value)
+                        }
+                      />
+                    </td>
 
-                      <td>
-                        <input
-                          type="number"
-                          className="form-control form-control-sm"
-                          value={p.sold}
-                          onChange={(e) =>
-                            handleSoldChange(p.id, e.target.value)
-                          }
-                        />
-                      </td>
+                    <td>{p.closing_stock}</td>
 
-                      <td>
-                        {p.closing_stock}
+                    <td className="text-success fw-bold">
+                      {formatNumber(p.total_sold)}
+                    </td>
 
-                        {isOut && (
-                          <span
-                            className="ms-2 px-2"
-                            style={{
-                              backgroundColor: "black",
-                              color: "white",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            OUT
-                          </span>
-                        )}
+                    <td>
+                      <button
+                        className="btn btn-sm btn-warning"
+                        onClick={() => handleEditPrice(p)}
+                      >
+                        Edit
+                      </button>
+                    </td>
 
-                        {isLow && !isOut && (
-                          <span
-                            className="ms-2 px-2"
-                            style={{
-                              backgroundColor: "red",
-                              color: "white",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            LOW
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="text-success fw-bold">
-                        {formatNumber(p.total_sold)}
-                      </td>
-                    </tr>
-                  );
-                })
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
+
     </div>
   );
 }
