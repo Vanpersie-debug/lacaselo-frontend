@@ -7,18 +7,44 @@ function Bar() {
   const [products, setProducts] = useState([]);
   const [selectedDate, setSelectedDate] = useState(today);
   const [totalEarned, setTotalEarned] = useState(0);
+  const [totalProfit, setTotalProfit] = useState(0);
+  const [totalStockValue, setTotalStockValue] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const API_URL = "https://backend-vitq.onrender.com/api/drinks";
 
-  // ================= FETCH PRODUCTS =================
+  // ================= FETCH =================
   const fetchProducts = async (date) => {
     try {
       setLoading(true);
       const res = await axios.get(API_URL, { params: { date } });
 
-      setProducts(res.data.products || []);
+      const prods = res.data.products || [];
+
+      setProducts(prods);
       setTotalEarned(res.data.totalEarned || 0);
+
+      const profitSum = prods.reduce(
+        (sum, p) => sum + Number(p.profit || 0),
+        0
+      );
+
+      const stockValue = prods.reduce(
+        (sum, p) =>
+          sum +
+          Number(p.closing_stock || 0) *
+            Number(p.initial_price || 0),
+        0
+      );
+
+      const lowStock = prods.filter(
+        (p) => Number(p.closing_stock) < 5
+      ).length;
+
+      setTotalProfit(profitSum);
+      setTotalStockValue(stockValue);
+      setLowStockCount(lowStock);
     } catch (err) {
       console.error(err);
     } finally {
@@ -30,10 +56,21 @@ function Bar() {
     fetchProducts(selectedDate);
   }, [selectedDate]);
 
+  // ================= CHANGE DATE =================
+  const changeDate = (days) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+    const formatted = newDate.toISOString().split("T")[0];
+
+    if (formatted > today) return;
+
+    setSelectedDate(formatted);
+  };
+
   // ================= ADD PRODUCT =================
   const handleAdd = async () => {
     const name = prompt("Product name:");
-    if (!name) return;
+    if (!name) return alert("Name is required");
 
     const initial_price = Number(prompt("Cost price:")) || 0;
     const price = Number(prompt("Selling price:")) || 0;
@@ -50,7 +87,7 @@ function Bar() {
     fetchProducts(selectedDate);
   };
 
-  // ================= LOCAL INPUT CHANGE =================
+  // ================= LOCAL CHANGE =================
   const handleLocalChange = (id, field, value) => {
     setProducts((prev) =>
       prev.map((p) =>
@@ -61,95 +98,148 @@ function Bar() {
 
   // ================= SAVE STOCK =================
   const saveStock = async (product) => {
-    try {
-      await axios.put(`${API_URL}/stock/${product.id}`, {
-        entree: Number(product.entree) || 0,
-        sold: Number(product.sold) || 0,
-        date: selectedDate,
-      });
+    await axios.put(`${API_URL}/stock/${product.id}`, {
+      entree: Number(product.entree) || 0,
+      sold: Number(product.sold) || 0,
+      date: selectedDate,
+    });
 
-      fetchProducts(selectedDate);
-    } catch (err) {
-      console.error(err);
-    }
+    fetchProducts(selectedDate);
   };
 
   const formatNumber = (value) =>
     Number(value || 0).toLocaleString();
 
   return (
-    <div className="container mt-4">
-      <h4 className="mb-3">Bar - {selectedDate}</h4>
+    <div className="container-fluid mt-4">
+      <div className="row g-4 mb-4">
 
-      <button className="btn btn-success mb-3" onClick={handleAdd}>
-        + Add Product
-      </button>
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
+            <div className="card-body">
+              <h6>Total Sales</h6>
+              <h4>RWF {formatNumber(totalEarned)}</h4>
+            </div>
+          </div>
+        </div>
 
-      <h5>Total Sales: RWF {formatNumber(totalEarned)}</h5>
+        <div className="col-md-3">
+          <div className="card shadow border-0" style={{ backgroundColor: "#D4AF37", color: "#000" }}>
+            <div className="card-body">
+              <h6>Total Profit</h6>
+              <h4>RWF {formatNumber(totalProfit)}</h4>
+            </div>
+          </div>
+        </div>
 
-      <div className="table-responsive mt-3">
-        <table className="table table-bordered text-center">
-          <thead className="table-dark">
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Cost</th>
-              <th>Selling</th>
-              <th>Opening</th>
-              <th>Stock In</th>
-              <th>Total</th>
-              <th>Sold</th>
-              <th>Closing</th>
-              <th>Sales</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="10">Loading...</td></tr>
-            ) : products.length === 0 ? (
-              <tr><td colSpan="10">No data</td></tr>
-            ) : (
-              products.map((p, i) => (
-                <tr key={p.id}>
-                  <td>{i + 1}</td>
-                  <td>{p.name}</td>
-                  <td>{formatNumber(p.initial_price)}</td>
-                  <td>{formatNumber(p.price)}</td>
-                  <td>{p.opening_stock}</td>
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0E6251" }}>
+            <div className="card-body">
+              <h6>Total Stock Value</h6>
+              <h4>RWF {formatNumber(totalStockValue)}</h4>
+            </div>
+          </div>
+        </div>
 
-                  <td>
-                    <input
-                      type="number"
-                      value={p.entree || ""}
-                      className="form-control"
-                      onChange={(e) =>
-                        handleLocalChange(p.id, "entree", e.target.value)
-                      }
-                      onBlur={() => saveStock(p)}
-                    />
-                  </td>
+        <div className="col-md-3">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#C0392B" }}>
+            <div className="card-body">
+              <h6>Low Stock</h6>
+              <h4>{lowStockCount}</h4>
+            </div>
+          </div>
+        </div>
 
-                  <td>{p.total_stock}</td>
+      </div>
 
-                  <td>
-                    <input
-                      type="number"
-                      value={p.sold || ""}
-                      className="form-control"
-                      onChange={(e) =>
-                        handleLocalChange(p.id, "sold", e.target.value)
-                      }
-                      onBlur={() => saveStock(p)}
-                    />
-                  </td>
+      <div className="card shadow border-0 mb-4">
+        <div className="card-body d-flex justify-content-between align-items-center">
+          <h4 className="fw-bold mb-0">Bar</h4>
 
-                  <td>{p.closing_stock}</td>
-                  <td>{formatNumber(p.total_sold)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+          <div className="d-flex align-items-center gap-2">
+            <button className="btn btn-outline-dark btn-sm" onClick={() => changeDate(-1)}>◀</button>
+            <strong>{selectedDate}</strong>
+            <button
+              className="btn btn-outline-dark btn-sm"
+              onClick={() => changeDate(1)}
+              disabled={selectedDate === today}
+            >▶</button>
+
+            <button className="btn btn-success ms-3" onClick={handleAdd}>
+              + Add Product
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="card shadow border-0">
+        <div className="table-responsive">
+          <table className="table table-bordered table-hover text-center mb-0">
+            <thead className="table-dark">
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th>Cost</th>
+                <th>Selling</th>
+                <th>Opening</th>
+                <th>Stock In</th>
+                <th>Total</th>
+                <th>Sold</th>
+                <th>Closing</th>
+                <th>Sales</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="10">Loading...</td></tr>
+              ) : products.length === 0 ? (
+                <tr><td colSpan="10">No report for this date</td></tr>
+              ) : (
+                products.map((p, i) => (
+                  <tr key={p.id}>
+                    <td>{i + 1}</td>
+                    <td>{p.name}</td>
+                    <td>{formatNumber(p.initial_price)}</td>
+                    <td>{formatNumber(p.price)}</td>
+                    <td>{p.opening_stock}</td>
+
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={p.entree || ""}
+                        onChange={(e) =>
+                          handleLocalChange(p.id, "entree", e.target.value)
+                        }
+                        onBlur={() => saveStock(p)}
+                      />
+                    </td>
+
+                    <td>{p.total_stock}</td>
+
+                    <td>
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        value={p.sold || ""}
+                        onChange={(e) =>
+                          handleLocalChange(p.id, "sold", e.target.value)
+                        }
+                        onBlur={() => saveStock(p)}
+                      />
+                    </td>
+
+                    <td>{p.closing_stock}</td>
+
+                    <td className="text-success fw-bold">
+                      {formatNumber(p.total_sold)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
