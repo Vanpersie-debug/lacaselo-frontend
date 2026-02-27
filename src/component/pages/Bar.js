@@ -63,7 +63,6 @@ function Bar() {
     const formatted = newDate.toISOString().split("T")[0];
 
     if (formatted > today) return;
-
     setSelectedDate(formatted);
   };
 
@@ -81,6 +80,29 @@ function Bar() {
       initial_price,
       price,
       opening_stock,
+      date: selectedDate,
+    });
+
+    fetchProducts(selectedDate);
+  };
+
+  // ================= EDIT PRODUCT =================
+  const handleEdit = async (product) => {
+    const newName = prompt("Edit product name:", product.name);
+    if (!newName) return alert("Name is required");
+
+    const newCost = Number(
+      prompt("Edit cost price:", product.initial_price)
+    );
+
+    const newSelling = Number(
+      prompt("Edit selling price:", product.price)
+    );
+
+    await axios.put(`${API_URL}/edit/${product.id}`, {
+      name: newName,
+      initial_price: newCost || 0,
+      price: newSelling || 0,
       date: selectedDate,
     });
 
@@ -187,13 +209,14 @@ function Bar() {
                 <th>Sold</th>
                 <th>Closing</th>
                 <th>Sales</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="10">Loading...</td></tr>
+                <tr><td colSpan="11">Loading...</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan="10">No report for this date</td></tr>
+                <tr><td colSpan="11">No report for this date</td></tr>
               ) : (
                 products.map((p, i) => (
                   <tr key={p.id}>
@@ -234,6 +257,16 @@ function Bar() {
                     <td className="text-success fw-bold">
                       {formatNumber(p.total_sold)}
                     </td>
+
+                    <td>
+                      <button
+                        className="btn btn-sm btn-warning"
+                        onClick={() => handleEdit(p)}
+                      >
+                        Edit
+                      </button>
+                    </td>
+
                   </tr>
                 ))
               )}
