@@ -25,16 +25,11 @@ function Bar() {
       setProducts(prods);
       setTotalEarned(res.data.totalEarned || 0);
 
-      const profitSum = prods.reduce(
-        (sum, p) => sum + Number(p.profit || 0),
-        0
-      );
+      const profitSum = prods.reduce((sum, p) => sum + Number(p.profit || 0), 0);
 
       const stockValue = prods.reduce(
         (sum, p) =>
-          sum +
-          Number(p.closing_stock || 0) *
-            Number(p.initial_price || 0),
+          sum + Number(p.closing_stock || 0) * Number(p.initial_price || 0),
         0
       );
 
@@ -45,6 +40,7 @@ function Bar() {
       setTotalProfit(profitSum);
       setTotalStockValue(stockValue);
       setLowStockCount(lowStock);
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -56,7 +52,7 @@ function Bar() {
     fetchProducts(selectedDate);
   }, [selectedDate]);
 
-  // ================= CHANGE DATE =================
+  // ================= DATE CHANGE =================
   const changeDate = (days) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
@@ -91,18 +87,15 @@ function Bar() {
     const newName = prompt("Edit product name:", product.name);
     if (!newName) return alert("Name is required");
 
-    const newCost = Number(
-      prompt("Edit cost price:", product.initial_price)
-    );
-
-    const newSelling = Number(
-      prompt("Edit selling price:", product.price)
-    );
+    const newCost = Number(prompt("Edit cost price:", product.initial_price));
+    const newSelling = Number(prompt("Edit selling price:", product.price));
+    const newOpening = Number(prompt("Edit opening stock:", product.opening_stock));
 
     await axios.put(`${API_URL}/edit/${product.id}`, {
       name: newName,
       initial_price: newCost || 0,
       price: newSelling || 0,
+      opening_stock: newOpening || 0,
       date: selectedDate,
     });
 
@@ -134,8 +127,8 @@ function Bar() {
 
   return (
     <div className="container-fluid mt-4">
+      {/* DASHBOARD CARDS */}
       <div className="row g-4 mb-4">
-
         <div className="col-md-3">
           <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
             <div className="card-body">
@@ -171,13 +164,12 @@ function Bar() {
             </div>
           </div>
         </div>
-
       </div>
 
+      {/* HEADER */}
       <div className="card shadow border-0 mb-4">
         <div className="card-body d-flex justify-content-between align-items-center">
           <h4 className="fw-bold mb-0">Bar</h4>
-
           <div className="d-flex align-items-center gap-2">
             <button className="btn btn-outline-dark btn-sm" onClick={() => changeDate(-1)}>◀</button>
             <strong>{selectedDate}</strong>
@@ -194,6 +186,7 @@ function Bar() {
         </div>
       </div>
 
+      {/* TABLE */}
       <div className="card shadow border-0">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
@@ -253,7 +246,6 @@ function Bar() {
                     </td>
 
                     <td>{p.closing_stock}</td>
-
                     <td className="text-success fw-bold">
                       {formatNumber(p.total_sold)}
                     </td>
@@ -266,7 +258,6 @@ function Bar() {
                         Edit
                       </button>
                     </td>
-
                   </tr>
                 ))
               )}
