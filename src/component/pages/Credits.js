@@ -1,47 +1,64 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-function EmployeeLoans() {
-  const { id } = useParams();
-  const [loans, setLoans] = useState([]);
+function Employees() {
+  const navigate = useNavigate();
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
-  const API_URL = `https://backend-vitq.onrender.com/api/employees/${id}/loans`;
 
-  const fetchLoans = async () => {
+  const [totalLoan, setTotalLoan] = useState(0);
+  const [totalRemaining, setTotalRemaining] = useState(0);
+
+  const API_URL = "https://backend-vitq.onrender.com/api/employees";
+
+  // ===== FETCH EMPLOYEES =====
+  const fetchEmployees = async () => {
     try {
       setLoading(true);
       const res = await axios.get(API_URL);
-      setLoans(res.data);
+      setEmployees(res.data);
+      recalcTotals(res.data);
     } catch (err) {
       console.error(err);
-      setLoans([]);
+      setEmployees([]);
+      setTotalLoan(0);
+      setTotalRemaining(0);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLoans();
+    fetchEmployees();
   }, []);
 
-  const handleAddLoan = async () => {
-    const amount = Number(prompt("Loan Amount:")) || 0;
-    if (amount <= 0) return;
+  // ===== RECALCULATE TOTALS =====
+  const recalcTotals = (data) => {
+    let loanSum = 0;
+    let remainingSum = 0;
 
-    try {
-      await axios.post(API_URL, { loan_amount: amount });
-      fetchLoans();
-    } catch (err) {
-      console.error(err);
-    }
+    data.forEach((e) => {
+      loanSum += Number(e.total_loan || 0);
+      remainingSum += Number(e.total_remaining || 0);
+    });
+
+    setTotalLoan(loanSum);
+    setTotalRemaining(remainingSum);
   };
 
-  const handlePaidChange = async (loanId, value) => {
-    const paid = Number(value) || 0;
+  // ===== ADD NEW EMPLOYEE =====
+  const handleAddEmployee = async () => {
+    const name = prompt("Employee Name:");
+    const salary = Number(prompt("Monthly Payment:")) || 0;
+
+    if (!name.trim()) return alert("Name is required");
+
     try {
-      await axios.put(`https://backend-vitq.onrender.com/api/employees/loans/${loanId}`, { paid_amount: paid });
-      fetchLoans();
+      const res = await axios.post(API_URL, { name, monthly_salary: salary });
+      const newEmployees = [res.data, ...employees];
+      setEmployees(newEmployees);
+      recalcTotals(newEmployees);
     } catch (err) {
       console.error(err);
     }
@@ -55,48 +72,72 @@ function EmployeeLoans() {
       {/* ===== HEADER ===== */}
       <div className="card shadow mb-4">
         <div className="card-body d-flex justify-content-between align-items-center">
-          <h4 className="fw-bold mb-0">Employee Loans</h4>
-          <button className="btn btn-success" onClick={handleAddLoan}>
-            + Add Loan
+          <h4 className="fw-bold mb-0">Employees</h4>
+          <button className="btn btn-success" onClick={handleAddEmployee}>
+            + Add Employee
           </button>
         </div>
       </div>
 
-      {/* ===== LOANS TABLE ===== */}
+      {/* ===== SUMMARY CARDS ===== */}
+      <div className="row g-4 mb-4">
+        <div className="col-md-6">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
+            <div className="card-body text-center">
+              <h6>Total Loan</h6>
+              <h4>RWF {formatNumber(totalLoan)}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-6">
+          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0E6251" }}>
+            <div className="card-body text-center">
+              <h6>Total Remaining</h6>
+              <h4>RWF {formatNumber(totalRemaining)}</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== TABLE ===== */}
       <div className="card shadow">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
             <thead className="table-dark">
               <tr>
                 <th>#</th>
-                <th>Loan Amount</th>
-                <th>Paid</th>
+                <th>Name</th>
+                <th>Monthly Payment</th>
+                <th>Total Loan</th>
                 <th>Remaining</th>
-                <th>Date</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr><td colSpan="5">Loading...</td></tr>
-              ) : loans.length === 0 ? (
-                <tr><td colSpan="5">No loans found</td></tr>
+              ) : employees.length === 0 ? (
+                <tr><td colSpan="5">No employees found</td></tr>
               ) : (
-                loans.map((l, i) => (
-                  <tr key={l.id}>
+                employees.map((e, i) => (
+                  <tr key={e.id}>
                     <td>{i + 1}</td>
-                    <td>RWF {formatNumber(l.loan_amount)}</td>
+
+                    {/* Name as a clickable link */}
                     <td>
-                      <input
-                        type="number"
-                        className="form-control form-control-sm"
-                        value={l.paid_amount}
-                        onChange={(e) => handlePaidChange(l.id, e.target.value)}
-                      />
+                      <span
+                        style={{ color: "#0d6efd", cursor: "pointer", textDecoration: "underline" }}
+                        onClick={() => navigate(`/employees/${e.id}`)}
+                      >
+                        {e.name}
+                      </span>
                     </td>
-                    <td className={l.remaining >= 0 ? "text-success fw-bold" : "text-danger fw-bold"}>
-                      RWF {formatNumber(l.remaining)}
+
+                    <td>RWF {formatNumber(e.monthly_salary)}</td>
+                    <td>RWF {formatNumber(e.total_loan)}</td>
+                    <td className={e.total_remaining >= 0 ? "text-success fw-bold" : "text-danger fw-bold"}>
+                      RWF {formatNumber(e.total_remaining)}
                     </td>
-                    <td>{l.loan_date}</td>
                   </tr>
                 ))
               )}
@@ -109,4 +150,4 @@ function EmployeeLoans() {
   );
 }
 
-export default EmployeeLoans;
+export default Employees;
