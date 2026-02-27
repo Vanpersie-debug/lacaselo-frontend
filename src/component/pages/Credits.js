@@ -1,87 +1,50 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useParams } from "react-router-dom";
 
-function Credits() {
-  const [credits, setCredits] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+function EmployeeLoans() {
+  const { id } = useParams();
+  const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(false);
+  const API_URL = `https://backend-vitq.onrender.com/api/employees/${id}/loans`;
 
-  const [totalPayment, setTotalPayment] = useState(0);
-  const [totalCredit, setTotalCredit] = useState(0);
-  const [totalRemaining, setTotalRemaining] = useState(0);
-
-  const API_URL = "https://backend-vitq.onrender.com/api/credits";
-
-  // ===== FETCH DATA =====
-  const fetchCredits = async () => {
+  const fetchLoans = async () => {
     try {
       setLoading(true);
       const res = await axios.get(API_URL);
-      const data = res.data || [];
-      setCredits(data);
-      recalcTotals(data);
+      setLoans(res.data);
     } catch (err) {
-      console.error("Error fetching credits:", err);
-      setCredits([]);
-      setTotalPayment(0);
-      setTotalCredit(0);
-      setTotalRemaining(0);
+      console.error(err);
+      setLoans([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCredits();
+    fetchLoans();
   }, []);
 
-  // ===== RECALCULATE TOTALS =====
-  const recalcTotals = (data) => {
-    let paymentSum = 0;
-    let creditSum = 0;
-    let remainingSum = 0;
-
-    data.forEach((c) => {
-      paymentSum += Number(c.payment || 0);
-      creditSum += Number(c.credit || 0);
-      remainingSum += Number(c.remaining || 0);
-    });
-
-    setTotalPayment(paymentSum);
-    setTotalCredit(creditSum);
-    setTotalRemaining(remainingSum);
-  };
-
-  // ===== ADD NEW CREDIT =====
-  const handleAdd = async () => {
-    const name = prompt("Customer Name:");
-    const payment = Number(prompt("Payment:")) || 0;
-    const credit = Number(prompt("Credit:")) || 0;
-
-    if (!name.trim()) return alert("Name is required");
+  const handleAddLoan = async () => {
+    const amount = Number(prompt("Loan Amount:")) || 0;
+    if (amount <= 0) return;
 
     try {
-      const res = await axios.post(API_URL, { name, payment, credit });
-      const newCredits = [res.data, ...credits];
-      setCredits(newCredits);
-      recalcTotals(newCredits);
+      await axios.post(API_URL, { loan_amount: amount });
+      fetchLoans();
     } catch (err) {
-      console.error("Error adding credit:", err);
+      console.error(err);
     }
   };
 
-  // ===== HANDLE EDIT =====
-  const handleChange = (id, field, value) => {
-    const numValue = Number(value);
-    const updatedCredits = credits.map((c) =>
-      c.id === id ? { ...c, [field]: numValue } : c
-    );
-    setCredits(updatedCredits);
-    recalcTotals(updatedCredits);
-
-    axios.put(`${API_URL}/${id}`, { [field]: numValue }).catch((err) =>
-      console.error(`Error updating ${field}:`, err)
-    );
+  const handlePaidChange = async (loanId, value) => {
+    const paid = Number(value) || 0;
+    try {
+      await axios.put(`https://backend-vitq.onrender.com/api/employees/loans/${loanId}`, { paid_amount: paid });
+      fetchLoans();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const formatNumber = (value) => Number(value || 0).toLocaleString();
@@ -89,88 +52,51 @@ function Credits() {
   return (
     <div className="container mt-4">
 
-      {/* ===== SUMMARY CARDS ===== */}
-      <div className="row g-4 mb-4">
-        <div className="col-md-4">
-          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
-            <div className="card-body text-center">
-              <h6>Total Payment</h6>
-              <h4>RWF {formatNumber(totalPayment)}</h4>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-md-4">
-          <div className="card shadow border-0" style={{ backgroundColor: "#D4AF37", color: "#000" }}>
-            <div className="card-body text-center">
-              <h6>Total Credit</h6>
-              <h4>RWF {formatNumber(totalCredit)}</h4>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-md-4">
-          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0E6251" }}>
-            <div className="card-body text-center">
-              <h6>Total Remaining</h6>
-              <h4>RWF {formatNumber(totalRemaining)}</h4>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* ===== HEADER ===== */}
       <div className="card shadow mb-4">
         <div className="card-body d-flex justify-content-between align-items-center">
-          <h4 className="fw-bold mb-0">Credits</h4>
-          <button className="btn btn-success" onClick={handleAdd}>
-            + Add Credit
+          <h4 className="fw-bold mb-0">Employee Loans</h4>
+          <button className="btn btn-success" onClick={handleAddLoan}>
+            + Add Loan
           </button>
         </div>
       </div>
 
-      {/* ===== TABLE ===== */}
+      {/* ===== LOANS TABLE ===== */}
       <div className="card shadow">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
             <thead className="table-dark">
               <tr>
                 <th>#</th>
-                <th>Name</th>
-                <th>Payment</th>
-                <th>Credits</th>
+                <th>Loan Amount</th>
+                <th>Paid</th>
                 <th>Remaining</th>
+                <th>Date</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr><td colSpan="5">Loading...</td></tr>
-              ) : credits.length === 0 ? (
-                <tr><td colSpan="5">No credit entries found</td></tr>
+              ) : loans.length === 0 ? (
+                <tr><td colSpan="5">No loans found</td></tr>
               ) : (
-                credits.map((c, i) => (
-                  <tr key={c.id}>
+                loans.map((l, i) => (
+                  <tr key={l.id}>
                     <td>{i + 1}</td>
-                    <td>{c.name}</td>
+                    <td>RWF {formatNumber(l.loan_amount)}</td>
                     <td>
                       <input
                         type="number"
                         className="form-control form-control-sm"
-                        value={c.payment}
-                        onChange={(e) => handleChange(c.id, "payment", e.target.value)}
+                        value={l.paid_amount}
+                        onChange={(e) => handlePaidChange(l.id, e.target.value)}
                       />
                     </td>
-                    <td>
-                      <input
-                        type="number"
-                        className="form-control form-control-sm"
-                        value={c.credit}
-                        onChange={(e) => handleChange(c.id, "credit", e.target.value)}
-                      />
+                    <td className={l.remaining >= 0 ? "text-success fw-bold" : "text-danger fw-bold"}>
+                      RWF {formatNumber(l.remaining)}
                     </td>
-                    <td className={c.remaining >= 0 ? "text-success fw-bold" : "text-danger fw-bold"}>
-                      {formatNumber(c.remaining)}
-                    </td>
+                    <td>{l.loan_date}</td>
                   </tr>
                 ))
               )}
@@ -183,4 +109,4 @@ function Credits() {
   );
 }
 
-export default Credits;
+export default EmployeeLoans;
