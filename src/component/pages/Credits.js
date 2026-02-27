@@ -7,6 +7,7 @@ function Employees() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const [totalPayment, setTotalPayment] = useState(0); // NEW: monthly payment total
   const [totalLoan, setTotalLoan] = useState(0);
   const [totalRemaining, setTotalRemaining] = useState(0);
 
@@ -22,6 +23,7 @@ function Employees() {
     } catch (err) {
       console.error(err);
       setEmployees([]);
+      setTotalPayment(0);
       setTotalLoan(0);
       setTotalRemaining(0);
     } finally {
@@ -35,14 +37,17 @@ function Employees() {
 
   // ===== RECALCULATE TOTALS =====
   const recalcTotals = (data) => {
+    let paymentSum = 0;
     let loanSum = 0;
     let remainingSum = 0;
 
     data.forEach((e) => {
+      paymentSum += Number(e.monthly_salary || 0);
       loanSum += Number(e.total_loan || 0);
       remainingSum += Number(e.total_remaining || 0);
     });
 
+    setTotalPayment(paymentSum);
     setTotalLoan(loanSum);
     setTotalRemaining(remainingSum);
   };
@@ -51,7 +56,6 @@ function Employees() {
   const handleAddEmployee = async () => {
     const name = prompt("Employee Name:");
     const salary = Number(prompt("Monthly Payment:")) || 0;
-
     if (!name.trim()) return alert("Name is required");
 
     try {
@@ -81,8 +85,17 @@ function Employees() {
 
       {/* ===== SUMMARY CARDS ===== */}
       <div className="row g-4 mb-4">
-        <div className="col-md-6">
-          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0B3D2E" }}>
+        <div className="col-md-4">
+          <div className="card shadow border-0" style={{ backgroundColor: "#D4AF37", color: "#000" }}>
+            <div className="card-body text-center">
+              <h6>Total Payment</h6>
+              <h4>RWF {formatNumber(totalPayment)}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-4">
+          <div className="card shadow border-0" style={{ backgroundColor: "#F28B82", color: "#000" }}>
             <div className="card-body text-center">
               <h6>Total Loan</h6>
               <h4>RWF {formatNumber(totalLoan)}</h4>
@@ -90,8 +103,8 @@ function Employees() {
           </div>
         </div>
 
-        <div className="col-md-6">
-          <div className="card text-white shadow border-0" style={{ backgroundColor: "#0E6251" }}>
+        <div className="col-md-4">
+          <div className="card shadow border-0" style={{ backgroundColor: "#0E6251", color: "#fff" }}>
             <div className="card-body text-center">
               <h6>Total Remaining</h6>
               <h4>RWF {formatNumber(totalRemaining)}</h4>
@@ -100,7 +113,7 @@ function Employees() {
         </div>
       </div>
 
-      {/* ===== TABLE ===== */}
+      {/* ===== EMPLOYEES TABLE ===== */}
       <div className="card shadow">
         <div className="table-responsive">
           <table className="table table-bordered table-hover text-center mb-0">
@@ -122,8 +135,6 @@ function Employees() {
                 employees.map((e, i) => (
                   <tr key={e.id}>
                     <td>{i + 1}</td>
-
-                    {/* Name as a clickable link */}
                     <td>
                       <span
                         style={{ color: "#0d6efd", cursor: "pointer", textDecoration: "underline" }}
@@ -132,7 +143,6 @@ function Employees() {
                         {e.name}
                       </span>
                     </td>
-
                     <td>RWF {formatNumber(e.monthly_salary)}</td>
                     <td>RWF {formatNumber(e.total_loan)}</td>
                     <td className={e.total_remaining >= 0 ? "text-success fw-bold" : "text-danger fw-bold"}>
