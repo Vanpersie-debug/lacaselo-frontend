@@ -1,161 +1,52 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-// ===== Navigation =====
-import Navbar from "./component/include/Navbar";
-
-// ===== Layout =====
-import Layout from "./component/layout/Layout";
-
-// ===== Pages =====
-import Home from "./component/pages/Home";
-import Bar from "./component/pages/Bar";
-import Kitchen from "./component/pages/Kitchen";
-import GuestHouse from "./component/pages/GuestHouse";
-import GYM from "./component/pages/GYM";
-import Billiard from "./component/pages/Billiard";
-import Expenses from "./component/pages/Expenses";
-import Credits from "./component/pages/Credits";
-import EmployeeLoans from "./component/pages/EmployeeLoans";
-import UserManagement from "./component/pages/UserManagement";
-import ActivityLogs from "./component/pages/ActivityLogs";
-
-// ===== Security =====
-import ProtectedRoute from "./component/auth/ProtectedRoutes.js";
-import { checkToken } from "./component/utils/CheckTokens.js";
+// ===== Redirect Component =====
+// This simple UI will be the only thing rendered
+const RedirectMessage = () => {
+  return (
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      minHeight: '100vh', 
+      padding: '20px', 
+      textAlign: 'center', 
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      backgroundColor: '#f8f9fa'
+    }}>
+      <h1 style={{ color: '#dc3545', marginBottom: '15px' }}>
+        Iyi page yahinduwe
+      </h1>
+      <p style={{ fontSize: '18px', color: '#333', marginBottom: '25px' }}>
+        Kanda kuriyi link ujye kuri page nshya:
+      </p>
+      <a 
+        href="https://lacaselo-frontend.vercel.app/" 
+        style={{ 
+          fontSize: '18px', 
+          color: '#0d6efd', 
+          textDecoration: 'none', 
+          fontWeight: 'bold',
+          padding: '12px 24px',
+          border: '2px solid #0d6efd',
+          borderRadius: '8px',
+          transition: 'background-color 0.3s'
+        }}
+      >
+        https://lacaselo-frontend.vercel.app/
+      </a>
+    </div>
+  );
+};
 
 function App() {
-
-  // 🔐 Auto logout if token expired
-  useEffect(() => {
-    checkToken();
-  }, []);
-
   return (
     <Router>
-
-      {/* ===== Navbar ===== */}
-      <Navbar />
-
       <Routes>
-
-        {/* ===== PUBLIC PAGE ===== */}
-        <Route path="/" element={<Home />} />
-
-        {/* ===== PROTECTED SYSTEM PAGES ===== */}
-
-        <Route
-          path="/bar"
-          element={
-            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "BAR_MAN"]}>
-              <Layout>
-                <Bar />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/kitchen"
-          element={
-            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "CHIEF_KITCHEN"]}>
-              <Layout>
-                <Kitchen />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/guesthouse"
-          element={
-            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "LAND_LORD"]}>
-              <Layout>
-                <GuestHouse />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/gym"
-          element={
-            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "GYM"]}>
-              <Layout>
-                <GYM />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/billiard"
-          element={
-            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "TOKEN_MAN"]}>
-              <Layout>
-                <Billiard />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/expenses"
-          element={
-            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN"]}>
-              <Layout>
-                <Expenses />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/credits"
-          element={
-            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER", "BAR_MAN", "CHIEF_KITCHEN"]}>
-              <Layout>
-                <Credits />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/employees/:id/loans"
-          element={
-            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER", "BAR_MAN", "CHIEF_KITCHEN"]}>
-              <Layout>
-                <EmployeeLoans />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/users"
-          element={
-            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN"]}>
-              <Layout>
-                <UserManagement />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/activity-logs"
-          element={
-            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN"]}>
-              <Layout>
-                <ActivityLogs />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
+        <Route path="*" element={<RedirectMessage />} />
       </Routes>
-
     </Router>
   );
 }
